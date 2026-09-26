@@ -1035,6 +1035,31 @@ function Admin({db,me,logout,flash,commit,theme,toggleTheme}){
   const delTeam=(tid)=>{ if(!window.confirm('팀을 삭제할까요?'))return; commit({...db,teams:db.teams.filter(t=>t.id!==tid)}); flash('팀 삭제됨'); };
   const resetSeed=()=>{ if(!window.confirm('데모 데이터를 초기화할까요?'))return; try{localStorage.removeItem('insu_db')}catch(e){} location.reload(); };
 
+  // ── 조직 추가/수정 ──
+  const [orgModal,setOrgModal]=useState(null);  // {type:'branch'|'team'|'account', ...}
+  const addBranch=(name)=>{ const bid=uuid(); commit({...db,branches:[...db.branches,{id:bid,name:name||'새 지점',code:rid('GN'),managerId:null}]}); flash('지점 추가됨'); };
+  const addTeam=(branchId,name)=>{ const tid=uuid(); commit({...db,teams:[...db.teams,{id:tid,branchId,name:name||'새 팀',code:rid('TM'),leaderId:null}]}); flash('팀 추가됨'); };
+  const renameBranch=(bid,name)=>commit({...db,branches:db.branches.map(b=>b.id===bid?{...b,name}:b)});
+  const renameTeam=(tid,name)=>commit({...db,teams:db.teams.map(t=>t.id===tid?{...t,name}:t)});
+  // ── 계정 생성(아이디=전화번호, 비번 발급). 데모=로컬 즉시 / 실모드=Edge Function 필요(안내) ──
+  const createAccount=(acc)=>{ // {name,phone,pw,role,branchId,teamId}
+    if(db.users.find(u=>u.phone===acc.phone)) { flash('이미 있는 전화번호'); return false; }
+    const uid=uuid(); const code=acc.role==='branch'?rid('GN'):acc.role==='team'?rid('TM'):null;
+    const nu={id:uid,name:acc.name,phone:acc.phone,pw:acc.pw,role:acc.role,branchId:acc.branchId||null,teamId:acc.teamId||null,
+      recruiterId:me.id,code,grade:acc.role==='branch'?'PLAT':acc.role==='team'?'GOLD':'FC',goalApe:acc.role==='agent'?200:300,consent:{tos:true,privacy:true,at:Date.now()}};
+    const nd={...db,users:[...db.users,nu]};
+    // 팀장이면 그 팀 leader, 지점장이면 branch manager 연결
+    if(acc.role==='team'&&acc.teamId) nd.teams=nd.teams.map(t=>t.id===acc.teamId?{...t,leaderId:uid}:t);
+    if(acc.role==='branch'&&acc.branchId) nd.branches=nd.branches.map(b=>b.id===acc.branchId?{...b,managerId:uid}:b);
+    commit(nd);
+    if(db.mode==='real') flash('⚠️ 로컬 생성됨 — 실제 로그인 계정은 Edge Function 배포 후 발급');
+    else flash(`계정 생성 ✓  아이디 ${acc.phone} / 비번 ${acc.pw}`);
+    return true;
+  };
+  // ── 팀원 배정/이동 ──
+  const assignUser=(uid,teamId)=>{ const t=db.teams.find(x=>x.id===teamId);
+    commit({...db,users:db.users.map(u=>u.id===uid?{...u,teamId,branchId:t?t.branchId:u.branchId}:u)}); flash('배정 완료 ✓'); };
+
   const COLLS=[
     {k:'customers',label:'고객',icon:'🧑‍🤝‍🧑',name:x=>x.name,sub:x=>{const u=db.users.find(y=>y.id===x.ownerId);return (u?u.name:'?')+' 담당'}},
     {k:'sales',label:'실적',icon:'📈',name:x=>x.product+' '+won(x.ape),sub:x=>{const u=db.users.find(y=>y.id===x.agentId);return (u?u.name:'?')+' · '+x.month}},
@@ -1068,21 +1093,38 @@ function Admin({db,me,logout,flash,commit,theme,toggleTheme}){
             <div key={l} style={{...card,borderRadius:14,padding:'14px 8px',textAlign:'center',boxShadow:dark?'none':'0 2px 10px rgba(20,40,90,.05)'}}>
               <div style={{fontSize:17}}>{ic}</div><div style={{fontWeight:900,fontSize:18,marginTop:2}}>{v}</div><div style={{fontSize:10.5,color:'var(--sub)'}}>{l}</div></div>)}
         </div>
-        <div style={{fontWeight:900,margin:'18px 0 8px'}}>지점 현황</div>
+        <div className="row" style={{justifyContent:'space-between',margin:'18px 0 8px'}}>
+          <div style={{fontWeight:900}}>조직 관리</div>
+          <div className="row" style={{gap:6}}>
+            <button className="chip tag-branch" onClick={()=>setOrgModal({type:'account'})}>＋계정</button>
+            <button className="chip tag-branch" onClick={()=>{const n=window.prompt('새 지점 이름');if(n)addBranch(n);}}>＋지점</button>
+          </div>
+        </div>
         {db.branches.map(b=>{const teams=db.teams.filter(t=>t.branchId===b.id);const mgr=db.users.find(u=>u.id===b.managerId);
           return <div key={b.id} style={{...card,borderRadius:14,padding:14,marginBottom:10}}>
             <div className="row" style={{justifyContent:'space-between'}} onClick={()=>setExp(exp===b.id?null:b.id)}>
-              <div><b>{b.name}</b> <span style={{fontSize:11.5,color:'var(--sub)'}}>지점장 {mgr?mgr.name:'-'} · {b.code}</span></div>
+              <div style={{flex:1}}><b>{b.name}</b> <span style={{fontSize:11.5,color:'var(--sub)'}}>지점장 {mgr?mgr.name:'미지정'} · {b.code}</span></div>
+              <button onClick={e=>{e.stopPropagation();const n=window.prompt('지점 이름 수정',b.name);if(n)renameBranch(b.id,n);}} style={{fontSize:13,marginRight:6}}>✏️</button>
               <span style={{color:'var(--blue)'}}>{exp===b.id?'▲':'▼'}</span></div>
             <div className="row" style={{gap:8,marginTop:10}}>
               {[[agentsOfBranch(b.id).length,'설계사'],[won(branchApe(b.id)),'월 APE'],[branchRet(b.id)+'%','유지율']].map(([v,l],i)=>
                 <div key={i} style={{flex:1,textAlign:'center',background:softBg,borderRadius:10,padding:'8px 4px'}}><div style={{fontWeight:800}}>{v}</div><div style={{fontSize:10,color:'var(--sub)'}}>{l}</div></div>)}</div>
-            {exp===b.id && <div style={{marginTop:10}}>{teams.map(t=>{const lead=db.users.find(u=>u.id===t.leaderId);
-              return <div key={t.id} className="row" style={{justifyContent:'space-between',padding:'8px 0',borderTop:'1px solid var(--line)'}}>
-                <div style={{fontSize:13,fontWeight:700}}>{t.name} <span style={{color:'var(--sub)',fontWeight:500,fontSize:11}}>팀장 {lead?lead.name:'-'} · {db.users.filter(u=>u.role==='agent'&&u.teamId===t.id).length}명</span></div>
-                <button onClick={()=>delTeam(t.id)} style={{color:'#E23B4E',fontSize:12,fontWeight:700}}>삭제</button></div>;})}
-              {teams.length===0&&<div style={{fontSize:12,color:'var(--sub)',marginTop:6}}>팀 없음</div>}
-              <button onClick={()=>delBranch(b.id)} style={{color:'#E23B4E',fontSize:12,fontWeight:700,marginTop:8}}>🗑️ 지점 삭제</button></div>}
+            {exp===b.id && <div style={{marginTop:10}}>
+              {teams.map(t=>{const lead=db.users.find(u=>u.id===t.leaderId);const members=db.users.filter(u=>u.role==='agent'&&u.teamId===t.id);
+              return <div key={t.id} style={{padding:'8px 0',borderTop:'1px solid var(--line)'}}>
+                <div className="row" style={{justifyContent:'space-between'}}>
+                  <div style={{fontSize:13,fontWeight:700,flex:1}}>{t.name} <span style={{color:'var(--sub)',fontWeight:500,fontSize:11}}>팀장 {lead?lead.name:'미지정'} · {members.length}명</span></div>
+                  <button onClick={()=>{const n=window.prompt('팀 이름 수정',t.name);if(n)renameTeam(t.id,n);}} style={{fontSize:12,marginRight:6}}>✏️</button>
+                  <button onClick={()=>delTeam(t.id)} style={{color:'#E23B4E',fontSize:11.5,fontWeight:700}}>삭제</button></div>
+                {members.map(m=><div key={m.id} className="row" style={{justifyContent:'space-between',padding:'4px 0 4px 10px'}}>
+                  <span style={{fontSize:12,color:'var(--sub)'}}>· {m.name}</span>
+                  <button onClick={()=>setOrgModal({type:'assign',user:m})} style={{fontSize:11,color:'var(--blue)',fontWeight:700}}>팀 이동</button></div>)}
+              </div>;})}
+              {teams.length===0&&<div style={{fontSize:12,color:'var(--sub)',margin:'6px 0'}}>팀 없음</div>}
+              <div className="row" style={{gap:8,marginTop:10}}>
+                <button className="chip tag-team" onClick={()=>{const n=window.prompt('새 팀 이름');if(n)addTeam(b.id,n);}}>＋팀 추가</button>
+                <button onClick={()=>delBranch(b.id)} style={{color:'#E23B4E',fontSize:11.5,fontWeight:700}}>🗑️ 지점 삭제</button></div>
+            </div>}
           </div>;})}
       </>}
 
@@ -1165,11 +1207,54 @@ function Admin({db,me,logout,flash,commit,theme,toggleTheme}){
       </>}
     </div>
 
+    {orgModal && <OrgModal db={db} me={me} m={orgModal} onClose={()=>setOrgModal(null)} createAccount={createAccount} assignUser={assignUser}/>}
+
     <div className="nav" style={{background:'var(--card)',borderTop:'1px solid var(--line)'}}>
       {[['dash','대시보드','📊'],['acct','계정','👤'],['data','데이터','🗄️'],['set','설정','⚙️']].map(([k,l,ic])=>
         <button key={k} className={sec===k?'on':''} onClick={()=>{setSec(k);setDataCat(null);setEditUser(null);}} style={{color:sec===k?'var(--blue)':'var(--sub)'}}><span className="ic">{ic}</span>{l}</button>)}
     </div>
   </div>;
+}
+// 계정 생성 / 팀 이동 모달
+function OrgModal({db,me,m,onClose,createAccount,assignUser}){
+  const [f,setF]=useState({name:'',phone:'',pw:'',role:'agent',branchId:(db.branches[0]||{}).id||'',teamId:''});
+  const teamsOf=(bid)=>db.teams.filter(t=>t.branchId===bid);
+  const wrap={position:'fixed',inset:0,background:'rgba(0,0,0,.5)',zIndex:200,display:'flex',alignItems:'flex-end',justifyContent:'center'};
+  const sheet={width:'100%',maxWidth:480,background:'var(--card)',color:'var(--ink)',borderTopLeftRadius:22,borderTopRightRadius:22,padding:'20px 20px calc(env(safe-area-inset-bottom,0px) + 20px)',maxHeight:'88vh',overflowY:'auto'};
+  const inp={width:'100%',height:46,border:'1.5px solid var(--line)',borderRadius:11,padding:'0 12px',background:'var(--field)',color:'var(--ink)',marginBottom:10};
+
+  if(m.type==='assign'){ const u=m.user;
+    return <div style={wrap} onClick={onClose}><div style={sheet} onClick={e=>e.stopPropagation()}>
+      <div style={{fontWeight:900,fontSize:17,marginBottom:4}}>{u.name} 팀 이동</div>
+      <div className="muted" style={{fontSize:12,marginBottom:14}}>이동할 팀을 선택하세요.</div>
+      {db.branches.map(b=><div key={b.id} style={{marginBottom:10}}>
+        <div style={{fontSize:12,fontWeight:800,color:'var(--sub)',marginBottom:6}}>{b.name}</div>
+        {teamsOf(b.id).map(t=><button key={t.id} onClick={()=>{assignUser(u.id,t.id);onClose();}} className="row" style={{width:'100%',padding:'11px 12px',borderRadius:11,background:u.teamId===t.id?'var(--soft)':'transparent',border:'1.5px solid var(--line)',marginBottom:6,color:'var(--ink)'}}>
+          <span style={{flex:1,textAlign:'left',fontWeight:700,fontSize:13.5}}>{t.name}</span>{u.teamId===t.id&&<span style={{color:'var(--blue)',fontSize:12}}>현재</span>}</button>)}
+        {teamsOf(b.id).length===0&&<div className="muted" style={{fontSize:11}}>팀 없음</div>}
+      </div>)}
+      <button className="btn ghost" onClick={onClose}>닫기</button>
+    </div></div>;
+  }
+  // account 생성
+  const submit=()=>{ if(!f.name||f.phone.length<10||f.pw.length<6){alert('이름·전화번호·비번(6자↑) 확인');return;}
+    if(createAccount({name:f.name,phone:f.phone,pw:f.pw,role:f.role,branchId:f.branchId||null,teamId:f.role==='branch'?null:(f.teamId||null)})) onClose(); };
+  return <div style={wrap} onClick={onClose}><div style={sheet} onClick={e=>e.stopPropagation()}>
+    <div style={{fontWeight:900,fontSize:17,marginBottom:4}}>계정 생성</div>
+    <div className="muted" style={{fontSize:12,marginBottom:14}}>전화번호가 아이디가 됩니다. 비번을 발급해 전달하세요.</div>
+    <div style={{fontSize:11.5,fontWeight:700,color:'var(--sub)',marginBottom:6}}>역할</div>
+    <div className="row" style={{gap:6,marginBottom:12}}>{['branch','team','agent'].map(r=><button key={r} onClick={()=>setF({...f,role:r})} className="chip" style={{background:f.role===r?'var(--navy)':'var(--soft)',color:f.role===r?'#fff':'var(--sub)',padding:'8px 12px'}}>{ROLE[r].label}</button>)}</div>
+    <input style={inp} value={f.name} onChange={e=>setF({...f,name:e.target.value})} placeholder="이름"/>
+    <input style={inp} value={f.phone} onChange={e=>setF({...f,phone:e.target.value.replace(/\D/g,'')})} placeholder="전화번호(아이디)" inputMode="numeric"/>
+    <input style={inp} value={f.pw} onChange={e=>setF({...f,pw:e.target.value})} placeholder="비밀번호(6자↑)"/>
+    <div style={{fontSize:11.5,fontWeight:700,color:'var(--sub)',marginBottom:6}}>소속 지점</div>
+    <select style={inp} value={f.branchId} onChange={e=>setF({...f,branchId:e.target.value,teamId:''})}>{db.branches.map(b=><option key={b.id} value={b.id}>{b.name}</option>)}</select>
+    {f.role!=='branch' && <><div style={{fontSize:11.5,fontWeight:700,color:'var(--sub)',marginBottom:6}}>소속 팀</div>
+      <select style={inp} value={f.teamId} onChange={e=>setF({...f,teamId:e.target.value})}><option value="">— 선택 —</option>{teamsOf(f.branchId).map(t=><option key={t.id} value={t.id}>{t.name}</option>)}</select></>}
+    <button className="btn blue" onClick={submit}>계정 생성</button>
+    <div style={{height:8}}/>
+    <button className="btn ghost" onClick={onClose}>취소</button>
+  </div></div>;
 }
 function DevInput({label,val,on}){ return <div><div style={{fontSize:11.5,fontWeight:700,color:'var(--sub)',marginBottom:5}}>{label}</div>
   <input value={val} onChange={e=>on(e.target.value)} style={{width:'100%',height:44,border:'1.5px solid var(--line)',borderRadius:11,padding:'0 12px',background:'var(--card)',color:'var(--ink)'}}/></div>; }
