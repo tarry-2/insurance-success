@@ -89,7 +89,7 @@ const DB = {
   save(d){ localStorage.setItem('insu_db', JSON.stringify(d)) },
 };
 const HQ_CODE = 'HQ2026';                 // 본사 관리자 코드(지점장 가입용)
-const DEV_CODE = '123456';                // 🔧 개발자 페이지(왼쪽상단 그래프 7클릭) 접속 코드
+const DEV_CODE = '413601';                // 🔧 개발자 페이지(왼쪽상단 그래프 7클릭) 접속 코드
 const rid = (p)=> p+'-'+Math.random().toString(36).slice(2,6).toUpperCase();
 
 const soon=(days)=>{const t=new Date();t.setDate(t.getDate()+days);return `${t.getFullYear()}-${String(t.getMonth()+1).padStart(2,'0')}-${String(t.getDate()).padStart(2,'0')}`};
