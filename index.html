@@ -122,7 +122,7 @@ function IntroVideo({radius=20,overlay=null}){
     <video ref={ref} src="/intro.mp4" poster="/intro-poster.jpg" autoPlay muted loop playsInline preload="auto"
       style={{width:'100%',aspectRatio:'16 / 9',height:'auto',objectFit:'cover',display:'block'}}/>
     {overlay}
-    <div style={{position:'absolute',right:10,bottom:10,display:'flex',gap:7,zIndex:3}}>
+    <div style={{position:'absolute',left:10,bottom:10,display:'flex',gap:7,zIndex:3}}>
       <button onClick={toggleSound} style={btn} title={muted?'소리 켜기':'소리 끄기'} aria-label="소리">{muted?'🔇':'🔊'}</button>
       <button onClick={goBig} style={btn} title="크게 보기" aria-label="크게 보기">⛶</button>
     </div>
