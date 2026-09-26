@@ -1,0 +1,427 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>인슈런스 석세스 프로그램</title>
+<link rel="manifest" href="/manifest.webmanifest">
+<meta name="theme-color" content="#1F5BFF">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<link rel="preconnect" href="https://cdn.jsdelivr.net">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
+<style>
+  *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  :root{--navy:#0B1B3F;--blue:#1F5BFF;--blue2:#38A4FF;--ink:#0B1B3F;--sub:#5B6781;--line:#E4EAF3;--bg:#F4F7FC;--card:#fff}
+  html,body{height:100%}
+  body{font-family:'Pretendard Variable',Pretendard,system-ui,-apple-system,sans-serif;color:var(--ink);background:var(--bg);
+    -webkit-font-smoothing:antialiased}
+  #root{min-height:100dvh}
+  button{font-family:inherit;cursor:pointer;border:none;background:none;color:inherit}
+  input,select{font-family:inherit;font-size:15px}
+  .app{max-width:480px;margin:0 auto;min-height:100dvh;background:var(--bg);position:relative;overflow:hidden}
+  .scroll{min-height:100dvh;padding-bottom:calc(env(safe-area-inset-bottom,0px) + 24px)}
+  .pad{padding:20px}
+  .btn{width:100%;height:52px;border-radius:14px;background:var(--navy);color:#fff;font-size:16px;font-weight:700;
+    display:flex;align-items:center;justify-content:center;gap:8px;transition:transform .14s,filter .2s}
+  .btn:active{transform:scale(.97)} .btn:disabled{opacity:.4}
+  .btn.blue{background:linear-gradient(135deg,var(--blue),var(--blue2))}
+  .btn.ghost{background:#fff;color:var(--navy);border:1.5px solid var(--line)}
+  .field{margin-bottom:14px}
+  .field label{display:block;font-size:12.5px;font-weight:700;color:var(--sub);margin-bottom:7px}
+  .field input,.field select{width:100%;height:50px;border:1.5px solid var(--line);border-radius:12px;padding:0 14px;background:#fff;
+    outline:none;transition:border-color .15s}
+  .field input:focus,.field select:focus{border-color:var(--blue)}
+  .err{color:#E23B4E;font-size:12px;margin-top:6px}
+  .ok{color:#12A150;font-size:12px;margin-top:6px;font-weight:700}
+  .card{background:var(--card);border-radius:16px;padding:16px;box-shadow:0 2px 12px rgba(20,40,90,.05)}
+  .row{display:flex;align-items:center;gap:10px}
+  .chip{font-size:11px;font-weight:800;padding:4px 10px;border-radius:20px}
+  .tag-branch{background:#EAF0FF;color:#1F5BFF}.tag-team{background:#E9FBF1;color:#12A150}.tag-agent{background:#FFF3E0;color:#C97A00}
+  .rolecard{flex:1;border:2px solid var(--line);border-radius:16px;padding:16px 12px;text-align:center;background:#fff;
+    transition:.15s;cursor:pointer}
+  .rolecard.on{border-color:var(--blue);background:#F5F8FF;box-shadow:0 6px 20px rgba(31,91,255,.14)}
+  .rolecard .ic{font-size:26px}.rolecard .t{font-weight:800;margin-top:6px;font-size:14px}.rolecard .d{font-size:10.5px;color:var(--sub);margin-top:3px}
+  .check{display:flex;align-items:flex-start;gap:10px;padding:11px 0;font-size:13.5px}
+  .check .box{width:22px;height:22px;border-radius:7px;border:2px solid var(--line);flex:none;display:flex;align-items:center;justify-content:center;
+    font-size:13px;color:#fff;transition:.15s}
+  .check .box.on{background:var(--blue);border-color:var(--blue)}
+  .link{color:var(--blue);font-weight:700;text-decoration:underline;font-size:12.5px}
+  .top{display:flex;align-items:center;gap:12px;padding:16px 20px}
+  .back{width:38px;height:38px;border-radius:11px;background:#fff;border:1.5px solid var(--line);display:flex;align-items:center;justify-content:center;font-size:18px}
+  .h1{font-size:24px;font-weight:900;letter-spacing:-.5px;line-height:1.25}
+  .muted{color:var(--sub);font-size:13.5px;line-height:1.6}
+  .legal{font-size:12.5px;line-height:1.85;color:#3A4763;white-space:pre-wrap}
+  .stat{flex:1;background:#fff;border-radius:14px;padding:14px;text-align:center}
+  .stat .v{font-size:20px;font-weight:900}.stat .l{font-size:11px;color:var(--sub);margin-top:2px}
+  .seg{display:flex;background:#EDF1F8;border-radius:12px;padding:4px;gap:4px}
+  .seg button{flex:1;height:38px;border-radius:9px;font-size:13px;font-weight:800;color:var(--sub)}
+  .seg button.on{background:#fff;color:var(--navy);box-shadow:0 1px 4px rgba(0,0,0,.08)}
+  .listrow{display:flex;align-items:center;gap:12px;padding:13px 4px;border-bottom:1px solid var(--line)}
+  .ava{width:40px;height:40px;border-radius:12px;background:linear-gradient(135deg,var(--blue),var(--blue2));color:#fff;
+    display:flex;align-items:center;justify-content:center;font-weight:800;font-size:15px;flex:none}
+  .codebox{background:var(--navy);color:#fff;border-radius:14px;padding:16px;text-align:center}
+  .codebox .c{font-size:26px;font-weight:900;letter-spacing:3px;margin-top:4px}
+  .nav{position:sticky;bottom:0;display:flex;background:#fff;border-top:1px solid var(--line);padding:6px 0 calc(env(safe-area-inset-bottom,0px) + 6px)}
+  .nav button{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;font-size:10.5px;color:#9AA6BE;font-weight:700;padding:6px 0}
+  .nav button.on{color:var(--blue)}.nav .ic{font-size:19px}
+  .toast{position:fixed;left:50%;bottom:90px;transform:translateX(-50%);background:#0B1B3Fdd;color:#fff;padding:11px 18px;
+    border-radius:12px;font-size:13px;font-weight:700;z-index:100;max-width:90%}
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script crossorigin src="https://cdn.jsdelivr.net/npm/react@18.3.1/umd/react.production.min.js"></script>
+<script crossorigin src="https://cdn.jsdelivr.net/npm/react-dom@18.3.1/umd/react-dom.production.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@babel/standalone@7.25.6/babel.min.js"></script>
+<script type="text/babel" data-presets="react">
+const {useState,useEffect} = React;
+
+/* ───────── 로컬 저장소 (백엔드는 나중에 Supabase로 교체) ───────── */
+const DB = {
+  load(){ try{return JSON.parse(localStorage.getItem('insu_db'))||null}catch(e){return null} },
+  save(d){ localStorage.setItem('insu_db', JSON.stringify(d)) },
+};
+const HQ_CODE = 'HQ2026';                 // 본사 관리자 코드(지점장 가입용)
+const rid = (p)=> p+'-'+Math.random().toString(36).slice(2,6).toUpperCase();
+
+function seed(){
+  const d = DB.load();
+  if(d) return d;
+  // 데모 조직: 강남지점 / 1팀 / 설계사 1명
+  const branch = {id:'b1', name:'강남지점', code:'GN-1A2B', managerId:'u1'};
+  const team   = {id:'t1', branchId:'b1', name:'1팀', code:'TM-3C4D', leaderId:'u2'};
+  const users = [
+    {id:'u1', name:'김지점', phone:'01011110000', pw:'1234', role:'branch', branchId:'b1', teamId:null, recruiterId:null, code:'GN-1A2B', consent:c(), createdAt:Date.now()},
+    {id:'u2', name:'이팀장', phone:'01022220000', pw:'1234', role:'team',   branchId:'b1', teamId:'t1', recruiterId:'u1', code:'TM-3C4D', consent:c(), createdAt:Date.now()},
+    {id:'u3', name:'박설계', phone:'01033330000', pw:'1234', role:'agent',  branchId:'b1', teamId:'t1', recruiterId:'u2', code:null, consent:c(), createdAt:Date.now()},
+    {id:'u4', name:'최설계', phone:'01044440000', pw:'1234', role:'agent',  branchId:'b1', teamId:'t1', recruiterId:'u2', code:null, consent:c(), createdAt:Date.now()},
+  ];
+  const db = {branches:[branch], teams:[team], users, session:null};
+  DB.save(db); return db;
+}
+function c(){ return {tos:true,privacy:true,marketing:false,at:Date.now()} }
+
+const ROLE = {
+  branch:{label:'지점장', chip:'tag-branch', ic:'🏢', d:'팀·설계사 전체 관리'},
+  team:  {label:'팀장',   chip:'tag-team',   ic:'👔', d:'팀원 관리 + 본인 실적'},
+  agent: {label:'설계사', chip:'tag-agent',  ic:'🧑‍💼',d:'본인 고객·실적'},
+};
+
+/* ───────── 메인 앱 ───────── */
+function App(){
+  const [db,setDb] = useState(seed);
+  const [route,setRoute] = useState(db.session ? 'home' : 'landing');
+  const [toast,setToast] = useState('');
+  const commit = (nd)=>{ DB.save(nd); setDb({...nd}); };
+  const me = db.users.find(u=>u.id===db.session) || null;
+  const flash = (m)=>{ setToast(m); setTimeout(()=>setToast(''),1800); };
+
+  const go = (r)=>setRoute(r);
+  const login = (uid)=>{ const nd={...db,session:uid}; commit(nd); go('home'); };
+  const logout = ()=>{ const nd={...db,session:null}; commit(nd); go('landing'); };
+
+  let view;
+  if(route==='landing') view=<Landing go={go}/>;
+  else if(route==='login') view=<Login db={db} go={go} login={login} flash={flash}/>;
+  else if(route==='signup') view=<Signup db={db} commit={commit} go={go} login={login} flash={flash}/>;
+  else if(route==='terms') view=<Legal kind="terms" go={go}/>;
+  else if(route==='privacy') view=<Legal kind="privacy" go={go}/>;
+  else if(route==='home' && me) view=<Home db={db} me={me} logout={logout} flash={flash}/>;
+  else view=<Landing go={go}/>;
+
+  return <div className="app">{view}{toast&&<div className="toast">{toast}</div>}</div>;
+}
+
+/* ───────── 시작 화면 ───────── */
+function Landing({go}){
+  return <div className="scroll" style={{background:'linear-gradient(180deg,#F7F9FD,#EAF0FA)'}}>
+    <div className="pad" style={{paddingTop:56}}>
+      <div className="muted" style={{fontWeight:700}}>사람의 가치를 더하는<br/>보험 전문가의 성장 플랫폼</div>
+      <div className="h1" style={{fontSize:34,marginTop:16}}>인슈런스<br/><span style={{color:'var(--blue)'}}>석세스</span><br/>프로그램</div>
+      <div style={{fontSize:11,letterSpacing:4,color:'#8A94AB',marginTop:10,fontWeight:700}}>INSURANCE SUCCESS</div>
+      <div className="card" style={{marginTop:28}}>
+        <div style={{fontWeight:800,marginBottom:4}}>유지율·정착률을 올리는 영업 시스템</div>
+        <div className="muted">승급·리쿠르팅·매출·고객·병원·기념일 관리까지 — 매일의 "할 일"로 성과를 만듭니다.</div>
+      </div>
+      <div style={{height:24}}/>
+      <button className="btn blue" onClick={()=>go('signup')}>시작하기 →</button>
+      <div style={{height:10}}/>
+      <button className="btn ghost" onClick={()=>go('login')}>로그인</button>
+    </div>
+  </div>;
+}
+
+/* ───────── 회원가입 (역할 + 추천인코드 + 약관) ───────── */
+function Signup({db,commit,go,login,flash}){
+  const [step,setStep]=useState(1);
+  const [role,setRole]=useState('agent');
+  const [f,setF]=useState({name:'',phone:'',pw:'',ref:''});
+  const [agree,setAgree]=useState({tos:false,privacy:false,marketing:false});
+  const [err,setErr]=useState('');
+  const set=(k,v)=>setF({...f,[k]:v});
+
+  // 추천인코드 해석 → 소속 미리보기
+  const refInfo = (()=>{
+    if(!f.ref) return null;
+    const code=f.ref.trim().toUpperCase();
+    if(role==='branch'){ return code===HQ_CODE ? {ok:true,text:'본사 관리자 코드 확인 — 새 지점을 개설합니다'} : {ok:false,text:'본사 관리자 코드가 아닙니다'}; }
+    if(role==='team'){ const b=db.branches.find(x=>x.code===code); return b?{ok:true,text:`${b.name} 소속 팀장으로 등록`}:{ok:false,text:'해당 지점장 코드를 찾을 수 없습니다'}; }
+    const t=db.teams.find(x=>x.code===code); const b=t&&db.branches.find(x=>x.id===t.branchId);
+    return t?{ok:true,text:`${b?b.name:''} · ${t.name} 소속 설계사로 등록`}:{ok:false,text:'해당 팀장 코드를 찾을 수 없습니다'};
+  })();
+
+  const doSignup=()=>{
+    setErr('');
+    if(!f.name||f.phone.length<10||f.pw.length<4){ setStep(2); return setErr('이름·휴대폰(10자리↑)·비밀번호(4자리↑)를 확인하세요'); }
+    if(db.users.find(u=>u.phone===f.phone)) return setErr('이미 가입된 휴대폰입니다');
+    if(!refInfo||!refInfo.ok){ setStep(2); return setErr('추천인 코드를 확인하세요'); }
+    if(!agree.tos||!agree.privacy) return setErr('필수 약관에 동의해주세요');
+    const code=f.ref.trim().toUpperCase();
+    const nd={...db, branches:[...db.branches], teams:[...db.teams], users:[...db.users]};
+    const uid=rid('U');
+    let branchId=null,teamId=null,recruiterId=null,myCode=null;
+    if(role==='branch'){
+      branchId=rid('b'); myCode=rid('GN');
+      nd.branches.push({id:branchId,name:f.name+' 지점',code:myCode,managerId:uid});
+    } else if(role==='team'){
+      const b=db.branches.find(x=>x.code===code); branchId=b.id; recruiterId=b.managerId; myCode=rid('TM');
+      teamId=rid('t'); nd.teams.push({id:teamId,branchId,name:f.name+' 팀',code:myCode,leaderId:uid});
+    } else {
+      const t=db.teams.find(x=>x.code===code); teamId=t.id; branchId=t.branchId; recruiterId=t.leaderId;
+    }
+    nd.users.push({id:uid,name:f.name,phone:f.phone,pw:f.pw,role,branchId,teamId,recruiterId,code:myCode,
+      consent:{...agree,at:Date.now()},createdAt:Date.now()});
+    commit(nd); flash('가입 완료! 환영합니다 🎉'); login(uid);
+  };
+
+  return <div className="scroll">
+    <div className="top"><button className="back" onClick={()=>step===1?go('landing'):setStep(step-1)}>‹</button>
+      <div style={{fontWeight:800}}>회원가입 <span style={{color:'var(--sub)',fontWeight:600,fontSize:13}}>({step}/3)</span></div></div>
+    <div className="pad" style={{paddingTop:6}}>
+    {step===1 && <>
+      <div className="h1" style={{fontSize:22,marginBottom:6}}>어떤 역할로<br/>시작하시나요?</div>
+      <div className="muted" style={{marginBottom:18}}>역할에 따라 관리 범위가 달라집니다.</div>
+      <div style={{display:'flex',flexDirection:'column',gap:10}}>
+        {['branch','team','agent'].map(r=>(
+          <div key={r} className={'rolecard'+(role===r?' on':'')} onClick={()=>setRole(r)} style={{textAlign:'left',display:'flex',alignItems:'center',gap:14}}>
+            <div className="ic">{ROLE[r].ic}</div>
+            <div><div className="t">{ROLE[r].label}</div><div className="d">{ROLE[r].d}</div></div>
+          </div>))}
+      </div>
+      <div style={{height:20}}/>
+      <button className="btn" onClick={()=>setStep(2)}>다음 →</button>
+    </>}
+
+    {step===2 && <>
+      <div className="h1" style={{fontSize:22,marginBottom:16}}>정보를 입력하세요</div>
+      <div className="field"><label>이름</label><input value={f.name} onChange={e=>set('name',e.target.value)} placeholder="홍길동"/></div>
+      <div className="field"><label>휴대폰 (아이디)</label><input value={f.phone} onChange={e=>set('phone',e.target.value.replace(/\D/g,''))} placeholder="01012345678" inputMode="numeric"/></div>
+      <div className="field"><label>비밀번호</label><input type="password" value={f.pw} onChange={e=>set('pw',e.target.value)} placeholder="4자리 이상"/></div>
+      <div className="field"><label>추천인 코드 {role==='branch'?'(본사 관리자 코드)':role==='team'?'(지점장 코드)':'(팀장 코드)'}</label>
+        <input value={f.ref} onChange={e=>set('ref',e.target.value.toUpperCase())} placeholder={role==='branch'?'HQ코드':'예: TM-3C4D'}/>
+        {refInfo && <div className={refInfo.ok?'ok':'err'}>{refInfo.ok?'✓ ':'✕ '}{refInfo.text}</div>}
+        {role==='agent' && <div className="muted" style={{fontSize:11,marginTop:6}}>데모 팀장 코드: <b>TM-3C4D</b> / 지점장 코드: <b>GN-1A2B</b> / 본사: <b>HQ2026</b></div>}
+      </div>
+      {err&&<div className="err" style={{marginBottom:10}}>{err}</div>}
+      <button className="btn" onClick={()=>{ if(!f.name||f.phone.length<10||f.pw.length<4){return setErr('이름·휴대폰·비밀번호를 확인하세요')} if(!refInfo||!refInfo.ok){return setErr('추천인 코드를 확인하세요')} setErr(''); setStep(3); }}>다음 →</button>
+    </>}
+
+    {step===3 && <>
+      <div className="h1" style={{fontSize:22,marginBottom:16}}>약관에 동의해주세요</div>
+      <div className="card">
+        <div className="check" onClick={()=>setAgree({tos:!agree.tos&&agree.privacy?true:!(agree.tos&&agree.privacy),privacy:!agree.tos&&agree.privacy?true:!(agree.tos&&agree.privacy),marketing:agree.marketing})} style={{fontWeight:800,borderBottom:'1px solid var(--line)'}}>
+          <div className={'box'+(agree.tos&&agree.privacy&&agree.marketing?' on':'')}>✓</div><div>전체 동의</div></div>
+        <Ck on={agree.tos} set={()=>setAgree({...agree,tos:!agree.tos})} label="[필수] 이용약관" onView={()=>go('terms')}/>
+        <Ck on={agree.privacy} set={()=>setAgree({...agree,privacy:!agree.privacy})} label="[필수] 개인정보 처리방침" onView={()=>go('privacy')}/>
+        <Ck on={agree.marketing} set={()=>setAgree({...agree,marketing:!agree.marketing})} label="[선택] 마케팅 정보 수신"/>
+      </div>
+      {err&&<div className="err" style={{margin:'10px 0'}}>{err}</div>}
+      <div style={{height:16}}/>
+      <button className="btn blue" disabled={!agree.tos||!agree.privacy} onClick={doSignup}>가입 완료</button>
+    </>}
+    </div>
+  </div>;
+}
+function Ck({on,set,label,onView}){
+  return <div className="check">
+    <div className={'box'+(on?' on':'')} onClick={set}>✓</div>
+    <div style={{flex:1}} onClick={set}>{label}</div>
+    {onView&&<span className="link" onClick={onView}>보기</span>}
+  </div>;
+}
+
+/* ───────── 로그인 ───────── */
+function Login({db,go,login,flash}){
+  const [phone,setPhone]=useState(''),[pw,setPw]=useState(''),[err,setErr]=useState('');
+  const submit=()=>{ const u=db.users.find(x=>x.phone===phone&&x.pw===pw); if(!u)return setErr('아이디 또는 비밀번호가 올바르지 않습니다'); login(u.id); };
+  const demo=(role)=>{ const u=db.users.find(x=>x.role===role); if(u)login(u.id); };
+  return <div className="scroll">
+    <div className="top"><button className="back" onClick={()=>go('landing')}>‹</button><div style={{fontWeight:800}}>로그인</div></div>
+    <div className="pad">
+      <div className="h1" style={{fontSize:22,marginBottom:6}}>다시 오신 것을<br/>환영합니다</div>
+      <div className="muted" style={{marginBottom:20}}>보험 전문가 계정으로 로그인하세요.</div>
+      <div className="field"><label>휴대폰 (아이디)</label><input value={phone} onChange={e=>setPhone(e.target.value.replace(/\D/g,''))} placeholder="01012345678" inputMode="numeric"/></div>
+      <div className="field"><label>비밀번호</label><input type="password" value={pw} onChange={e=>setPw(e.target.value)} placeholder="비밀번호"/></div>
+      {err&&<div className="err" style={{marginBottom:10}}>{err}</div>}
+      <button className="btn" onClick={submit}>로그인</button>
+      <div style={{textAlign:'center',margin:'18px 0',color:'#9AA6BE',fontSize:12}}>— 데모 계정으로 둘러보기 —</div>
+      <div className="row" style={{gap:8}}>
+        <button className="btn ghost" style={{height:44,fontSize:13}} onClick={()=>demo('branch')}>지점장</button>
+        <button className="btn ghost" style={{height:44,fontSize:13}} onClick={()=>demo('team')}>팀장</button>
+        <button className="btn ghost" style={{height:44,fontSize:13}} onClick={()=>demo('agent')}>설계사</button>
+      </div>
+      <div style={{textAlign:'center',marginTop:18,fontSize:13,color:'var(--sub)'}}>아직 계정이 없으신가요? <span className="link" onClick={()=>go('signup')}>회원가입</span></div>
+    </div>
+  </div>;
+}
+
+/* ───────── 이용약관 / 개인정보 처리방침 ───────── */
+function Legal({kind,go}){
+  const T = kind==='terms'
+   ? {title:'이용약관', body:`제1조 (목적)\n본 약관은 인슈런스 석세스 프로그램(이하 "서비스")의 이용 조건 및 절차, 회사와 회원의 권리·의무를 규정합니다.\n\n제2조 (정의)\n1. "회원"이란 역할(지점장·팀장·설계사)로 가입하여 서비스를 이용하는 자를 말합니다.\n2. "추천인 코드"란 상위 조직(본사·지점장·팀장)에의 소속을 연결하는 코드입니다.\n\n제3조 (서비스의 내용)\n고객관리, 매출·업적관리, 리쿠르팅·정착관리, 승급관리, 병원(청구지원)·기념일 관리 등을 제공합니다.\n\n제4조 (회원의 의무)\n회원은 고객의 개인정보 및 보험계약 정보를 관계 법령에 따라 안전하게 취급해야 합니다.\n\n제5조 (계약 해지)\n회원은 언제든 탈퇴할 수 있으며, 관계 법령이 정한 기간 동안 보관이 필요한 정보는 예외로 합니다.\n\n※ 본 약관은 시안이며 정식 서비스 출시 전 법무 검토 후 확정됩니다.`}
+   : {title:'개인정보 처리방침', body:`인슈런스 석세스 프로그램(이하 "회사")은 개인정보보호법 등 관계 법령을 준수합니다.\n\n1. 수집 항목\n- 회원: 이름, 휴대폰번호, 비밀번호, 역할, 소속(추천인 코드), 동의 이력\n- 고객관리 목적: 회원이 입력하는 고객 정보(생일·기념일·계약 등)\n\n2. 이용 목적\n영업 관리, 조직(지점·팀) 위계 구성, 유지율·정착률 향상을 위한 알림·통계 제공.\n\n3. 보유 기간\n회원 탈퇴 시 지체 없이 파기하되, 관계 법령에 따라 일정 기간 보관할 수 있습니다.\n\n4. 제3자 제공\n법령에 근거하거나 회원의 동의가 있는 경우를 제외하고 제공하지 않습니다.\n\n5. 이용자 권리\n이용자는 자신의 개인정보 열람·정정·삭제·처리정지를 요청할 수 있습니다.\n\n6. 개인정보 보호책임자\n(정식 출시 시 지정·공개)\n\n※ 본 방침은 시안이며 정식 출시 전 법무 검토 후 확정됩니다.`};
+  return <div className="scroll">
+    <div className="top"><button className="back" onClick={()=>go('signup')}>‹</button><div style={{fontWeight:800}}>{T.title}</div></div>
+    <div className="pad"><div className="legal">{T.body}</div></div>
+  </div>;
+}
+
+/* ───────── 홈 (역할별 스코프) ───────── */
+function Home({db,me,logout,flash}){
+  const [tab,setTab]=useState('home');
+  const branch=db.branches.find(b=>b.id===me.branchId);
+  const team=db.teams.find(t=>t.id===me.teamId);
+
+  // 역할별 가시 범위
+  const scopeUsers = db.users.filter(u=>{
+    if(me.role==='agent') return u.id===me.id;
+    if(me.role==='team')  return u.teamId===me.teamId;
+    return u.branchId===me.branchId; // branch
+  });
+  const agents = scopeUsers.filter(u=>u.role==='agent');
+
+  return <div className="scroll" style={{paddingBottom:0,minHeight:'100dvh',display:'flex',flexDirection:'column'}}>
+    <div className="pad" style={{flex:1,overflowY:'auto'}}>
+      <div className="row" style={{justifyContent:'space-between'}}>
+        <div><div style={{fontWeight:900,fontSize:18}}>{me.name} <span className={'chip '+ROLE[me.role].chip}>{ROLE[me.role].label}</span></div>
+          <div className="muted" style={{fontSize:12.5}}>{branch?branch.name:''}{team?' · '+team.name:''}</div></div>
+        <button className="back" onClick={logout} title="로그아웃">⏻</button>
+      </div>
+
+      {tab==='home' && <>
+        <div className="row" style={{gap:10,marginTop:16}}>
+          {me.role==='agent'
+            ? <><div className="stat"><div className="v">3</div><div className="l">오늘 연락</div></div>
+                <div className="stat"><div className="v">92%</div><div className="l">내 유지율</div></div>
+                <div className="stat"><div className="v">4건</div><div className="l">이번달 계약</div></div></>
+            : <><div className="stat"><div className="v">{agents.length}</div><div className="l">{me.role==='branch'?'지점 설계사':'팀원'}</div></div>
+                <div className="stat"><div className="v">{me.role==='branch'?db.teams.filter(t=>t.branchId===me.branchId).length:1}</div><div className="l">팀 수</div></div>
+                <div className="stat"><div className="v">88%</div><div className="l">평균 유지율</div></div></>}
+        </div>
+        <div className="card" style={{marginTop:14}}>
+          <div style={{fontWeight:800,marginBottom:6}}>💡 오늘의 할 일 (엔진)</div>
+          <div className="muted">미납 경보 · 기념일 접점 · 청구 팔로업 · 신인 활동체크 — 이 큐가 유지율/정착률을 올립니다. <b>(다음 단계에서 실데이터 연결)</b></div>
+        </div>
+        {me.role!=='agent' && <div className="codebox" style={{marginTop:14}}>
+          <div style={{fontSize:12,opacity:.8}}>내 추천인 코드 (하위 초대용)</div>
+          <div className="c">{me.code||'-'}</div>
+          <div style={{fontSize:11,opacity:.7,marginTop:4}}>{me.role==='branch'?'팀장':'설계사'}가 이 코드로 가입하면 자동 소속됩니다</div>
+        </div>}
+      </>}
+
+      {tab==='org' && <OrgView db={db} me={me}/>}
+
+      {tab==='community' && <Community/>}
+
+      {tab==='more' && <div style={{marginTop:16}}>
+        <div className="card"><div className="listrow" style={{borderBottom:'none'}}><div style={{flex:1,fontWeight:700}}>내 추천인 코드</div><b>{me.code||'—'}</b></div></div>
+        <div style={{height:12}}/>
+        <button className="btn ghost" onClick={logout}>로그아웃</button>
+        <div className="muted" style={{textAlign:'center',marginTop:16,fontSize:11}}>ⓘ 지금은 프론트(로컬 저장) 단계 · 백엔드(로그인·데이터)는 다음 순서</div>
+      </div>}
+    </div>
+
+    <div className="nav">
+      <button className={tab==='home'?'on':''} onClick={()=>setTab('home')}><span className="ic">🏠</span>홈</button>
+      {me.role!=='agent' && <button className={tab==='org'?'on':''} onClick={()=>setTab('org')}><span className="ic">👥</span>{me.role==='branch'?'조직관리':'팀관리'}</button>}
+      <button className={tab==='community'?'on':''} onClick={()=>setTab('community')}><span className="ic">📚</span>커뮤니티</button>
+      <button className={tab==='more'?'on':''} onClick={()=>setTab('more')}><span className="ic">⋯</span>더보기</button>
+    </div>
+  </div>;
+}
+
+/* ───────── 조직관리: 지점장=팀별/개별 토글, 팀장=팀원 개별 ───────── */
+function OrgView({db,me}){
+  const [mode,setMode]=useState(me.role==='branch'?'team':'agent');
+  const teams=db.teams.filter(t=>t.branchId===me.branchId);
+  const agentsOf=(tid)=>db.users.filter(u=>u.role==='agent'&&u.teamId===tid);
+  const allAgents=db.users.filter(u=>u.role==='agent'&&(me.role==='branch'?u.branchId===me.branchId:u.teamId===me.teamId));
+
+  return <div style={{marginTop:16}}>
+    {me.role==='branch' && <div className="seg" style={{marginBottom:14}}>
+      <button className={mode==='team'?'on':''} onClick={()=>setMode('team')}>팀별 보기</button>
+      <button className={mode==='agent'?'on':''} onClick={()=>setMode('agent')}>전체 설계사</button>
+    </div>}
+
+    {me.role==='branch'&&mode==='team' && teams.map(t=>{
+      const ms=agentsOf(t.id); const lead=db.users.find(u=>u.id===t.leaderId);
+      return <div key={t.id} className="card" style={{marginBottom:12}}>
+        <div className="row" style={{justifyContent:'space-between'}}>
+          <div><b>{t.name}</b> <span className="chip tag-team">{ms.length}명</span></div>
+          <div className="muted" style={{fontSize:12}}>팀장 {lead?lead.name:'-'}</div></div>
+        <div style={{marginTop:8}}>{ms.length?ms.map(a=><Person key={a.id} u={a}/>):<div className="muted" style={{fontSize:12.5,padding:'8px 0'}}>팀원이 없습니다</div>}</div>
+      </div>;
+    })}
+
+    {(mode==='agent'||me.role==='team') && <div className="card">
+      <div style={{fontWeight:800,marginBottom:4}}>{me.role==='branch'?'지점 전체 설계사':'팀원'} ({allAgents.length})</div>
+      {allAgents.length?allAgents.map(a=><Person key={a.id} u={a} team={db.teams.find(t=>t.id===a.teamId)}/>):<div className="muted" style={{padding:'8px 0'}}>설계사가 없습니다</div>}
+    </div>}
+  </div>;
+}
+/* ───────── 커뮤니티 / 자료실 (전 인원 열람) ───────── */
+function Community(){
+  const cats=['전체','공지','상품자료','세일즈 스크립트','청구/서류','교육'];
+  const [cat,setCat]=useState('전체');
+  const posts=[
+    {c:'공지',t:'9월 시상식 & 우수지점 안내',by:'본사',d:'09.25',hot:true},
+    {c:'상품자료',t:'2026 실손보험 개정 핵심요약 (PDF)',by:'본사 상품팀',d:'09.24'},
+    {c:'세일즈 스크립트',t:'출산 고객 어린이보험 접근 스크립트',by:'이팀장',d:'09.23',hot:true},
+    {c:'청구/서류',t:'입원·수술 실손청구 필요서류 체크리스트',by:'본사',d:'09.20'},
+    {c:'교육',t:'신인 13주 도입 교육자료 모음',by:'강남지점',d:'09.18'},
+    {c:'세일즈 스크립트',t:'만기/갱신 고객 리텐션 대화법',by:'박설계',d:'09.15'},
+  ];
+  const list=posts.filter(p=>cat==='전체'||p.c===cat);
+  return <div style={{marginTop:16}}>
+    <div className="row" style={{justifyContent:'space-between',marginBottom:10}}>
+      <div style={{fontWeight:900,fontSize:17}}>📚 커뮤니티 · 자료실</div>
+      <button className="chip tag-branch" style={{border:'none'}}>＋ 글쓰기</button></div>
+    <div style={{display:'flex',gap:7,overflowX:'auto',paddingBottom:8}}>
+      {cats.map(x=><button key={x} className="chip" onClick={()=>setCat(x)}
+        style={{whiteSpace:'nowrap',background:cat===x?'var(--navy)':'#EDF1F8',color:cat===x?'#fff':'var(--sub)'}}>{x}</button>)}
+    </div>
+    <div className="card" style={{padding:'4px 16px'}}>
+      {list.map((p,i)=><div key={i} className="listrow">
+        <div style={{flex:1}}>
+          <div style={{fontWeight:700,fontSize:14}}>{p.hot&&<span style={{color:'#E23B4E'}}>🔥 </span>}{p.t}</div>
+          <div className="muted" style={{fontSize:11.5}}><span className="chip tag-team" style={{padding:'1px 7px',fontSize:10}}>{p.c}</span>  {p.by} · {p.d}</div>
+        </div><div style={{color:'var(--blue)',fontWeight:800}}>›</div>
+      </div>)}
+    </div>
+    <div className="muted" style={{textAlign:'center',fontSize:11,marginTop:12}}>ⓘ 전 인원이 열람하는 자료실 · 글쓰기·업로드는 백엔드 연결 후 실동작</div>
+  </div>;
+}
+
+function Person({u,team}){
+  return <div className="listrow">
+    <div className="ava">{u.name[0]}</div>
+    <div style={{flex:1}}><div style={{fontWeight:700,fontSize:14}}>{u.name}{team?<span className="muted" style={{fontSize:11}}>  · {team.name}</span>:''}</div>
+      <div className="muted" style={{fontSize:11.5}}>유지율 90% · 이번달 3건 · 활동 정상</div></div>
+    <div style={{fontSize:12,color:'var(--blue)',fontWeight:800}}>›</div>
+  </div>;
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
+</script>
+</body>
+</html>
