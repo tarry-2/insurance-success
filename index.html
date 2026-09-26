@@ -454,11 +454,25 @@ function Signup({go,signup,flash}){
     flash('가입 완료! 환영합니다 🎉');
   };
 
+  const STEPS=[['역할','👤'],['정보','📝'],['약관','📄']];
   return <div className="scroll">
     <div className="top"><button className="back" onClick={()=>step===1?go('landing'):setStep(step-1)}>‹</button>
-      <div style={{fontWeight:800}}>회원가입 <span style={{color:'var(--sub)',fontWeight:600,fontSize:13}}>({step}/3)</span></div></div>
+      <div style={{fontWeight:800}}>회원가입</div></div>
     <div className="pad" style={{paddingTop:6}}>
+    {/* 진행 스텝바 */}
+    <div style={{display:'flex',alignItems:'center',marginBottom:22}}>
+      {STEPS.map(([lbl],i)=>{const n=i+1;const done=step>n;const cur=step===n;
+        return <React.Fragment key={n}>
+          <div style={{display:'flex',flexDirection:'column',alignItems:'center',gap:5,flex:'none'}}>
+            <div style={{width:30,height:30,borderRadius:'50%',display:'flex',alignItems:'center',justifyContent:'center',fontSize:13,fontWeight:800,
+              background:done?'#12A150':cur?'var(--blue)':'#E4EAF3',color:done||cur?'#fff':'var(--sub)',transition:'.2s'}}>{done?'✓':n}</div>
+            <div style={{fontSize:10.5,fontWeight:cur?800:600,color:cur?'var(--blue)':'var(--sub)'}}>{lbl}</div>
+          </div>
+          {n<3 && <div style={{flex:1,height:2,margin:'0 6px',marginBottom:16,borderRadius:2,background:step>n?'#12A150':'#E4EAF3',transition:'.2s'}}/>}
+        </React.Fragment>;})}
+    </div>
     {step===1 && <>
+      <div style={{width:52,height:52,borderRadius:15,background:'linear-gradient(135deg,#1F5BFF,#38A4FF)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:26,marginBottom:12}}>👤</div>
       <div className="h1" style={{fontSize:22,marginBottom:6}}>어떤 역할로<br/>시작하시나요?</div>
       <div className="muted" style={{marginBottom:18}}>역할에 따라 관리 범위가 달라집니다.</div>
       <div style={{display:'flex',flexDirection:'column',gap:10}}>
@@ -473,7 +487,9 @@ function Signup({go,signup,flash}){
     </>}
 
     {step===2 && <>
-      <div className="h1" style={{fontSize:22,marginBottom:16}}>정보를 입력하세요</div>
+      <div style={{width:52,height:52,borderRadius:15,background:'linear-gradient(135deg,#1F5BFF,#38A4FF)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:26,marginBottom:12}}>📝</div>
+      <div className="h1" style={{fontSize:22,marginBottom:4}}>정보를 입력하세요</div>
+      <div className="muted" style={{marginBottom:18}}><b style={{color:'var(--blue)'}}>{ROLE[role].label}</b> 계정으로 가입합니다.</div>
       <div className="field"><label>이름</label><input value={f.name} onChange={e=>set('name',e.target.value)} placeholder="홍길동"/></div>
       <div className="field"><label>전화번호 (아이디)</label><input value={f.phone} onChange={e=>set('phone',e.target.value.replace(/\D/g,''))} placeholder="01012345678" inputMode="numeric"/></div>
       <div className="field"><label>비밀번호</label><input type="password" value={f.pw} onChange={e=>set('pw',e.target.value)} placeholder="6자리 이상"/></div>
@@ -487,7 +503,9 @@ function Signup({go,signup,flash}){
     </>}
 
     {step===3 && <>
-      <div className="h1" style={{fontSize:22,marginBottom:16}}>약관에 동의해주세요</div>
+      <div style={{width:52,height:52,borderRadius:15,background:'linear-gradient(135deg,#1F5BFF,#38A4FF)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:26,marginBottom:12}}>📄</div>
+      <div className="h1" style={{fontSize:22,marginBottom:4}}>약관에 동의해주세요</div>
+      <div className="muted" style={{marginBottom:18}}>안전한 서비스 이용을 위해 필요해요.</div>
       <div className="card">
         <div className="check" onClick={()=>setAgree({tos:!agree.tos&&agree.privacy?true:!(agree.tos&&agree.privacy),privacy:!agree.tos&&agree.privacy?true:!(agree.tos&&agree.privacy),marketing:agree.marketing})} style={{fontWeight:800,borderBottom:'1px solid var(--line)'}}>
           <div className={'box'+(agree.tos&&agree.privacy&&agree.marketing?' on':'')}>✓</div><div>전체 동의</div></div>
