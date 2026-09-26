@@ -88,7 +88,7 @@ const DB = {
   load(){ try{return JSON.parse(localStorage.getItem('insu_db'))||null}catch(e){return null} },
   save(d){ localStorage.setItem('insu_db', JSON.stringify(d)) },
 };
-const HQ_CODE = 'HQ2026';                 // 본사 관리자 코드(지점장 가입용)
+const HQ_CODE = 'HQ2026';                 // 지점장 가입 승인 코드
 const DEV_CODE = '413601';                // 🔧 개발자 페이지(왼쪽상단 그래프 7클릭) 접속 코드
 const rid = (p)=> p+'-'+Math.random().toString(36).slice(2,6).toUpperCase();
 
@@ -116,14 +116,14 @@ function seed(){
     if(!d.posts){d.posts=demoPosts();ch=true;}
     if(!d.settings){d.settings={docRetentionMonths:0,commissionRate:35};ch=true;} // 0=무제한 보관
     if(d.settings&&d.settings.commissionRate==null){d.settings.commissionRate=35;ch=true;}
-    if(!(d.users||[]).some(u=>u.role==='hq')){d.users.unshift({id:'u0',name:'본사관리자',phone:'01000000000',pw:'1234',role:'hq',branchId:null,teamId:null,recruiterId:null,code:'HQ2026',consent:c(),createdAt:Date.now()});ch=true;}
+    if(!(d.users||[]).some(u=>u.role==='hq')){d.users.unshift({id:'u0',name:'개발자',phone:'01000000000',pw:'1234',role:'hq',branchId:null,teamId:null,recruiterId:null,code:'HQ2026',consent:c(),createdAt:Date.now()});ch=true;}
     (d.users||[]).forEach(u=>{ if(u.role!=='branch'&&u.goalApe==null){u.goalApe=300;ch=true;}
       if(!u.grade){u.grade=u.role==='branch'?'PLAT':u.role==='team'?'GOLD':'FC';ch=true;} });
     if(ch)DB.save(d); return d; } // 마이그레이션
   const branch = {id:'b1', name:'강남지점', code:'GN-1A2B', managerId:'u1'};
   const team   = {id:'t1', branchId:'b1', name:'1팀', code:'TM-3C4D', leaderId:'u2'};
   const users = [
-    {id:'u0', name:'본사관리자', phone:'01000000000', pw:'1234', role:'hq', branchId:null, teamId:null, recruiterId:null, code:'HQ2026', consent:c(), createdAt:Date.now()},
+    {id:'u0', name:'개발자', phone:'01000000000', pw:'1234', role:'hq', branchId:null, teamId:null, recruiterId:null, code:'HQ2026', consent:c(), createdAt:Date.now()},
     {id:'u1', name:'김지점', phone:'01011110000', pw:'1234', role:'branch', branchId:'b1', teamId:null, recruiterId:null, code:'GN-1A2B', grade:'PLAT', consent:c(), createdAt:Date.now()},
     {id:'u2', name:'이팀장', phone:'01022220000', pw:'1234', role:'team',   branchId:'b1', teamId:'t1', recruiterId:'u1', code:'TM-3C4D', goalApe:300, grade:'GOLD', consent:c(), createdAt:Date.now()},
     {id:'u3', name:'박설계', phone:'01033330000', pw:'1234', role:'agent',  branchId:'b1', teamId:'t1', recruiterId:'u2', code:null, goalApe:300, grade:'SFC', consent:c(), createdAt:Date.now()},
@@ -255,7 +255,7 @@ function demoPosts(){
 }
 
 const ROLE = {
-  hq:    {label:'본사 관리자', chip:'tag-branch', ic:'🏛️', d:'지점·팀·계정 전체 통제'},
+  hq:    {label:'개발자', chip:'tag-branch', ic:'🔧', d:'모든 기능·데이터 통제'},
   branch:{label:'지점장', chip:'tag-branch', ic:'🏢', d:'팀·설계사 전체 관리'},
   team:  {label:'팀장',   chip:'tag-team',   ic:'👔', d:'팀원 관리 + 본인 실적'},
   agent: {label:'설계사', chip:'tag-agent',  ic:'🧑‍💼',d:'본인 고객·실적'},
@@ -339,7 +339,7 @@ function App(){
   const signup = async(p)=>{
     const code=(p.ref||'').trim().toUpperCase();
     let branchId=null,teamId=null,recruiterId=null,myCode=null,grade='FC';
-    if(p.role==='branch'){ if(code!==HQ_CODE) return {error:'본사 관리자 코드가 아닙니다'}; }
+    if(p.role==='branch'){ if(code!==HQ_CODE) return {error:'가입 승인 코드가 아닙니다'}; }
     else if(p.role==='team'){ const {data}=await SB.from('branches').select('*').eq('code',code).maybeSingle(); if(!data) return {error:'지점장 코드를 찾을 수 없습니다'}; branchId=data.id; recruiterId=data.manager_id; }
     else { const {data}=await SB.from('teams').select('*').eq('code',code).maybeSingle(); if(!data) return {error:'팀장 코드를 찾을 수 없습니다'}; teamId=data.id; branchId=data.branch_id; recruiterId=data.leader_id; }
     const {data:au,error:ae}=await SB.auth.signUp({email:phoneEmail(p.phone),password:p.pw});
@@ -354,7 +354,7 @@ function App(){
   const logout = async()=>{ try{ if(db && db.mode==='real') await SB.auth.signOut(); }catch(e){}
     const s=seed(); setDb({...s,mode:'demo',session:null}); setRoute('landing'); };
 
-  // 🔧 개발자(본사 관리자) — 왼쪽 상단 그래프 7클릭 + 코드 → 데모 본사 화면
+  // 🔧 개발자 콘솔 — 왼쪽 상단 그래프 7클릭 + 코드 → 개발자 페이지
   const onDev = ()=>{ const pw=window.prompt('🔧 개발자 페이지 접속 코드'); if(pw==null) return;
     if(pw===DEV_CODE){ demoLogin('hq'); } else flash('코드가 올바르지 않습니다'); };
 
@@ -411,7 +411,7 @@ function Signup({go,signup,flash}){
 
   // 지점장(본사코드)만 로컬 미리보기, 팀장/설계사 코드는 가입 시 서버 검증
   const refInfo = (()=>{ if(!f.ref) return null; const code=f.ref.trim().toUpperCase();
-    if(role==='branch') return code===HQ_CODE?{ok:true,text:'본사 코드 확인 — 새 지점을 개설합니다'}:{ok:false,text:'본사 관리자 코드가 아닙니다'};
+    if(role==='branch') return code===HQ_CODE?{ok:true,text:'가입 승인 코드 확인 — 새 지점을 개설합니다'}:{ok:false,text:'가입 승인 코드가 아닙니다'};
     return null; })();
 
   const doSignup=async()=>{
@@ -449,13 +449,13 @@ function Signup({go,signup,flash}){
       <div className="field"><label>이름</label><input value={f.name} onChange={e=>set('name',e.target.value)} placeholder="홍길동"/></div>
       <div className="field"><label>전화번호 (아이디)</label><input value={f.phone} onChange={e=>set('phone',e.target.value.replace(/\D/g,''))} placeholder="01012345678" inputMode="numeric"/></div>
       <div className="field"><label>비밀번호</label><input type="password" value={f.pw} onChange={e=>set('pw',e.target.value)} placeholder="6자리 이상"/></div>
-      <div className="field"><label>추천인 코드 {role==='branch'?'(본사 관리자 코드)':role==='team'?'(지점장 코드)':'(팀장 코드)'}</label>
+      <div className="field"><label>추천인 코드 {role==='branch'?'(가입 승인 코드)':role==='team'?'(지점장 코드)':'(팀장 코드)'}</label>
         <input value={f.ref} onChange={e=>set('ref',e.target.value.toUpperCase())} placeholder={role==='branch'?'HQ2026':'예: TM-3C4D'}/>
         {refInfo && <div className={refInfo.ok?'ok':'err'}>{refInfo.ok?'✓ ':'✕ '}{refInfo.text}</div>}
-        <div className="muted" style={{fontSize:11,marginTop:6}}>{role==='branch'?'본사 관리자 코드 HQ2026 입력':role==='team'?'지점장에게 지점 코드를 받으세요':'팀장에게 팀 코드를 받으세요'}</div>
+        <div className="muted" style={{fontSize:11,marginTop:6}}>{role==='branch'?'가입 승인 코드 HQ2026 입력':role==='team'?'지점장에게 지점 코드를 받으세요':'팀장에게 팀 코드를 받으세요'}</div>
       </div>
       {err&&<div className="err" style={{marginBottom:10}}>{err}</div>}
-      <button className="btn" onClick={()=>{ if(!f.name||f.phone.length<10||f.pw.length<6){return setErr('이름·전화번호·비밀번호(6자리↑)를 확인하세요')} if(!f.ref){return setErr('추천인 코드를 입력하세요')} if(role==='branch'&&f.ref.trim().toUpperCase()!==HQ_CODE){return setErr('본사 관리자 코드가 아닙니다')} setErr(''); setStep(3); }}>다음 →</button>
+      <button className="btn" onClick={()=>{ if(!f.name||f.phone.length<10||f.pw.length<6){return setErr('이름·전화번호·비밀번호(6자리↑)를 확인하세요')} if(!f.ref){return setErr('추천인 코드를 입력하세요')} if(role==='branch'&&f.ref.trim().toUpperCase()!==HQ_CODE){return setErr('가입 승인 코드가 아닙니다')} setErr(''); setStep(3); }}>다음 →</button>
     </>}
 
     {step===3 && <>
@@ -834,93 +834,172 @@ function Members({db,me}){
   </div>;
 }
 /* ───────── 관리자(본사) 페이지 ───────── */
+const DARK_VARS={'--bg':'#0C1220','--card':'#161F30','--ink':'#E9EEF7','--sub':'#8A99B4','--line':'#26324A','--soft':'#1C2740'};
+const LIGHT_VARS={'--soft':'#F5F8FF'};
 function Admin({db,me,logout,flash,commit}){
-  const [sec,setSec]=useState('org');
-  const [exp,setExp]=useState(null); const [q,setQ]=useState('');
+  const [sec,setSec]=useState('dash');
+  const [dark,setDark]=useState(()=>{try{return localStorage.getItem('insu_dev_dark')==='1'}catch(e){return false}});
+  const [exp,setExp]=useState(null); const [q,setQ]=useState(''); const [editUser,setEditUser]=useState(null); const [dataCat,setDataCat]=useState(null);
+  const set=(patch)=>commit({...db,settings:{...db.settings,...patch}});
+  const ret=(db.settings&&db.settings.docRetentionMonths)||0;
+  const toggleDark=()=>{ const v=!dark; setDark(v); try{localStorage.setItem('insu_dev_dark',v?'1':'0')}catch(e){} };
+  const vars = dark?DARK_VARS:LIGHT_VARS;
+  const softBg = dark?'var(--soft)':'#F5F8FF';
+
   const agentsOfBranch=(bid)=>db.users.filter(u=>u.role==='agent'&&u.branchId===bid);
   const branchApe=(bid)=>{const ids=db.users.filter(u=>u.branchId===bid).map(u=>u.id);return db.sales.filter(s=>ids.includes(s.agentId)&&s.month===monthKey(0)).reduce((a,s)=>a+s.ape,0);};
   const branchRet=(bid)=>{const ids=db.users.filter(u=>u.branchId===bid).map(u=>u.id);const cts=db.customers.filter(c=>ids.includes(c.ownerId)).flatMap(c=>c.contracts||[]);return cts.length?Math.round(cts.filter(x=>x.status==='정상').length/cts.length*100):100;};
-  const set=(patch)=>commit({...db,settings:{...db.settings,...patch}});
-  const ret=(db.settings&&db.settings.docRetentionMonths)||0;
-  const users=db.users.filter(u=>!q||u.name.includes(q)||ROLE[u.role].label.includes(q));
+  const users=db.users.filter(u=>!q||u.name.includes(q)||(u.phone||'').includes(q)||ROLE[u.role].label.includes(q));
 
-  return <div className="scroll" style={{paddingBottom:0,minHeight:'100dvh',display:'flex',flexDirection:'column'}}>
-    <div className="pad" style={{flex:1,overflowY:'auto'}}>
+  // ── 컨트롤(모든 데이터/계정/조직 수정·삭제) ──
+  const saveUser=(nu)=>{ commit({...db,users:db.users.map(u=>u.id===nu.id?nu:u)}); setEditUser(null); flash('계정 저장 ✓'); };
+  const delUser=(uid)=>{ if(!window.confirm('이 계정을 삭제할까요?'))return; commit({...db,users:db.users.filter(u=>u.id!==uid)}); setEditUser(null); flash('계정 삭제됨'); };
+  const delFrom=(coll,id,key='id')=>{ commit({...db,[coll]:db[coll].filter(x=>x[key]!==id)}); flash('삭제됨'); };
+  const delBranch=(bid)=>{ if(!window.confirm('지점과 하위 팀 연결을 삭제할까요?'))return; commit({...db,branches:db.branches.filter(b=>b.id!==bid),teams:db.teams.filter(t=>t.branchId!==bid)}); flash('지점 삭제됨'); };
+  const delTeam=(tid)=>{ if(!window.confirm('팀을 삭제할까요?'))return; commit({...db,teams:db.teams.filter(t=>t.id!==tid)}); flash('팀 삭제됨'); };
+  const resetSeed=()=>{ if(!window.confirm('데모 데이터를 초기화할까요?'))return; try{localStorage.removeItem('insu_db')}catch(e){} location.reload(); };
+
+  const COLLS=[
+    {k:'customers',label:'고객',icon:'🧑‍🤝‍🧑',name:x=>x.name,sub:x=>{const u=db.users.find(y=>y.id===x.ownerId);return (u?u.name:'?')+' 담당'}},
+    {k:'sales',label:'실적',icon:'📈',name:x=>x.product+' '+won(x.ape),sub:x=>{const u=db.users.find(y=>y.id===x.agentId);return (u?u.name:'?')+' · '+x.month}},
+    {k:'recruits',label:'리쿠르팅',icon:'🌱',name:x=>x.name,sub:x=>x.stage+' · '+x.source},
+    {k:'claims',label:'청구',icon:'🏥',name:x=>{const c=db.customers.find(y=>y.id===x.customerId);return (c?c.name:'?')+' '+x.type},sub:x=>x.status+' · '+won(x.amount)},
+    {k:'docs',label:'자료',icon:'🗂️',name:x=>x.name,sub:x=>x.type+' · '+x.date},
+    {k:'posts',label:'게시글',icon:'📚',name:x=>x.title,sub:x=>x.cat+' · '+x.by},
+  ];
+
+  const card = { background:'var(--card)', color:'var(--ink)' };
+  return <div className={'scroll'+(dark?' devdark':'')} style={{...vars, paddingBottom:0, minHeight:'100dvh', display:'flex', flexDirection:'column', background:'var(--bg)', color:'var(--ink)'}}>
+    {/* 헤더 */}
+    <div style={{background:'linear-gradient(135deg,#0B1B3F,#1F5BFF)',color:'#fff',padding:'20px 20px 18px',borderBottomLeftRadius:22,borderBottomRightRadius:22}}>
       <div className="row" style={{justifyContent:'space-between'}}>
-        <div><div style={{fontWeight:900,fontSize:18}}>{me.name} <span className="chip tag-branch">본사 관리자</span></div>
-          <div className="muted" style={{fontSize:12.5}}>인슈런스 석세스 · 본사 관제</div></div>
-        <button className="back" onClick={logout} title="로그아웃">⏻</button></div>
-
-      {sec==='org' && <div style={{marginTop:16}}>
         <div className="row" style={{gap:10}}>
-          <div className="stat"><div className="v">{db.branches.length}</div><div className="l">지점</div></div>
-          <div className="stat"><div className="v">{db.teams.length}</div><div className="l">팀</div></div>
-          <div className="stat"><div className="v">{db.users.filter(u=>u.role==='agent').length}</div><div className="l">설계사</div></div>
+          <div style={{width:40,height:40,borderRadius:12,background:'rgba(255,255,255,.15)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:20}}>🔧</div>
+          <div><div style={{fontWeight:900,fontSize:18}}>개발자 콘솔</div><div style={{fontSize:11.5,opacity:.85}}>모든 기능·데이터 관리 · {me.name}</div></div>
         </div>
-        <div style={{fontWeight:900,margin:'16px 0 8px'}}>지점 현황</div>
+        <div className="row" style={{gap:8}}>
+          <button onClick={toggleDark} title="다크/라이트" style={{width:40,height:40,borderRadius:12,background:'rgba(255,255,255,.15)',color:'#fff',fontSize:17}}>{dark?'☀️':'🌙'}</button>
+          <button onClick={logout} title="로그아웃" style={{width:40,height:40,borderRadius:12,background:'rgba(255,255,255,.15)',color:'#fff',fontSize:17}}>⏻</button>
+        </div>
+      </div>
+    </div>
+
+    <div style={{flex:1,overflowY:'auto',padding:'16px 18px'}}>
+      {/* 대시보드 */}
+      {sec==='dash' && <>
+        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:10}}>
+          {[['지점',db.branches.length,'🏢'],['팀',db.teams.length,'👥'],['설계사',db.users.filter(u=>u.role==='agent').length,'🧑‍💼'],['고객',db.customers.length,'🤝'],['이번달 APE',won(db.sales.filter(s=>s.month===monthKey(0)).reduce((a,s)=>a+s.ape,0)),'💰'],['게시글',db.posts.length,'📚']].map(([l,v,ic])=>
+            <div key={l} style={{...card,borderRadius:14,padding:'14px 8px',textAlign:'center',boxShadow:dark?'none':'0 2px 10px rgba(20,40,90,.05)'}}>
+              <div style={{fontSize:17}}>{ic}</div><div style={{fontWeight:900,fontSize:18,marginTop:2}}>{v}</div><div style={{fontSize:10.5,color:'var(--sub)'}}>{l}</div></div>)}
+        </div>
+        <div style={{fontWeight:900,margin:'18px 0 8px'}}>지점 현황</div>
         {db.branches.map(b=>{const teams=db.teams.filter(t=>t.branchId===b.id);const mgr=db.users.find(u=>u.id===b.managerId);
-          return <div key={b.id} className="card" style={{marginBottom:10}}>
+          return <div key={b.id} style={{...card,borderRadius:14,padding:14,marginBottom:10}}>
             <div className="row" style={{justifyContent:'space-between'}} onClick={()=>setExp(exp===b.id?null:b.id)}>
-              <div><b>{b.name}</b> <span className="muted" style={{fontSize:11.5}}>지점장 {mgr?mgr.name:'-'} · 코드 {b.code}</span></div>
+              <div><b>{b.name}</b> <span style={{fontSize:11.5,color:'var(--sub)'}}>지점장 {mgr?mgr.name:'-'} · {b.code}</span></div>
               <span style={{color:'var(--blue)'}}>{exp===b.id?'▲':'▼'}</span></div>
             <div className="row" style={{gap:8,marginTop:10}}>
-              <div style={{flex:1,textAlign:'center',background:'#F5F8FF',borderRadius:10,padding:'8px 4px'}}><div style={{fontWeight:800}}>{agentsOfBranch(b.id).length}</div><div className="muted" style={{fontSize:10}}>설계사</div></div>
-              <div style={{flex:1,textAlign:'center',background:'#F5F8FF',borderRadius:10,padding:'8px 4px'}}><div style={{fontWeight:800}}>{won(branchApe(b.id))}</div><div className="muted" style={{fontSize:10}}>월 APE</div></div>
-              <div style={{flex:1,textAlign:'center',background:'#F5F8FF',borderRadius:10,padding:'8px 4px'}}><div style={{fontWeight:800,color:branchRet(b.id)<80?'#E23B4E':'#12A150'}}>{branchRet(b.id)}%</div><div className="muted" style={{fontSize:10}}>유지율</div></div></div>
+              {[[agentsOfBranch(b.id).length,'설계사'],[won(branchApe(b.id)),'월 APE'],[branchRet(b.id)+'%','유지율']].map(([v,l],i)=>
+                <div key={i} style={{flex:1,textAlign:'center',background:softBg,borderRadius:10,padding:'8px 4px'}}><div style={{fontWeight:800}}>{v}</div><div style={{fontSize:10,color:'var(--sub)'}}>{l}</div></div>)}</div>
             {exp===b.id && <div style={{marginTop:10}}>{teams.map(t=>{const lead=db.users.find(u=>u.id===t.leaderId);
-              return <div key={t.id} className="listrow"><div className="ava" style={{width:34,height:34,fontSize:13}}>{t.name[0]}</div>
-                <div style={{flex:1}}><div style={{fontWeight:700,fontSize:13}}>{t.name} <span className="muted" style={{fontSize:11}}>팀장 {lead?lead.name:'-'} · {db.users.filter(u=>u.role==='agent'&&u.teamId===t.id).length}명</span></div></div></div>;})}
-              {teams.length===0&&<div className="muted" style={{fontSize:12}}>팀 없음</div>}</div>}
+              return <div key={t.id} className="row" style={{justifyContent:'space-between',padding:'8px 0',borderTop:'1px solid var(--line)'}}>
+                <div style={{fontSize:13,fontWeight:700}}>{t.name} <span style={{color:'var(--sub)',fontWeight:500,fontSize:11}}>팀장 {lead?lead.name:'-'} · {db.users.filter(u=>u.role==='agent'&&u.teamId===t.id).length}명</span></div>
+                <button onClick={()=>delTeam(t.id)} style={{color:'#E23B4E',fontSize:12,fontWeight:700}}>삭제</button></div>;})}
+              {teams.length===0&&<div style={{fontSize:12,color:'var(--sub)',marginTop:6}}>팀 없음</div>}
+              <button onClick={()=>delBranch(b.id)} style={{color:'#E23B4E',fontSize:12,fontWeight:700,marginTop:8}}>🗑️ 지점 삭제</button></div>}
           </div>;})}
-      </div>}
+      </>}
 
-      {sec==='acct' && <div style={{marginTop:16}}>
-        <div style={{fontWeight:900,marginBottom:8}}>계정 관리 ({db.users.length})</div>
-        <div className="field"><input value={q} onChange={e=>setQ(e.target.value)} placeholder="이름·역할 검색"/></div>
-        <div className="card" style={{padding:'2px 14px'}}>
-          {users.map(u=>{const b=db.branches.find(x=>x.id===u.branchId);const t=db.teams.find(x=>x.id===u.teamId);
-            return <div key={u.id} className="listrow"><div className="ava">{u.name[0]}</div>
-              <div style={{flex:1}}><div style={{fontWeight:700,fontSize:13.5}}>{u.name} <span className={'chip '+ROLE[u.role].chip} style={{fontSize:10}}>{ROLE[u.role].label}</span></div>
-                <div className="muted" style={{fontSize:11}}>{b?b.name:'본사'}{t?' · '+t.name:''}{u.code?' · '+u.code:''}</div></div></div>;})}
-        </div>
-      </div>}
+      {/* 계정 (전체 CRUD) */}
+      {sec==='acct' && <>
+        <div style={{fontWeight:900,marginBottom:10}}>계정 관리 <span style={{color:'var(--blue)'}}>{db.users.length}</span></div>
+        <input value={q} onChange={e=>setQ(e.target.value)} placeholder="이름·전화·역할 검색"
+          style={{width:'100%',height:46,border:'1.5px solid var(--line)',borderRadius:12,padding:'0 14px',marginBottom:12,background:'var(--card)',color:'var(--ink)'}}/>
+        {users.map(u=>{const b=db.branches.find(x=>x.id===u.branchId);const t=db.teams.find(x=>x.id===u.teamId);const open=editUser&&editUser.id===u.id;
+          return <div key={u.id} style={{...card,borderRadius:14,padding:'12px 14px',marginBottom:8}}>
+            <div className="row" onClick={()=>setEditUser(open?null:{...u})}>
+              <div className="ava">{u.name[0]}</div>
+              <div style={{flex:1}}><div style={{fontWeight:700,fontSize:14}}>{u.name} <span className={'chip '+ROLE[u.role].chip} style={{fontSize:10}}>{ROLE[u.role].label}</span></div>
+                <div style={{fontSize:11,color:'var(--sub)'}}>{u.phone} · {b?b.name:'—'}{t?' · '+t.name:''}</div></div>
+              <span style={{color:'var(--blue)',fontWeight:800}}>{open?'▲':'✏️'}</span></div>
+            {open && <div style={{marginTop:12,borderTop:'1px solid var(--line)',paddingTop:12,display:'flex',flexDirection:'column',gap:8}}>
+              <DevInput label="이름" val={editUser.name} on={v=>setEditUser({...editUser,name:v})}/>
+              <DevInput label="전화번호" val={editUser.phone} on={v=>setEditUser({...editUser,phone:v})}/>
+              <div><div style={{fontSize:11.5,fontWeight:700,color:'var(--sub)',marginBottom:5}}>역할</div>
+                <div className="row" style={{gap:6}}>{['branch','team','agent'].map(r=><button key={r} onClick={()=>setEditUser({...editUser,role:r})} className="chip" style={{background:editUser.role===r?'var(--navy)':'var(--soft)',color:editUser.role===r?'#fff':'var(--sub)',padding:'7px 12px'}}>{ROLE[r].label}</button>)}</div></div>
+              <DevSelect label="소속 지점" val={editUser.branchId||''} on={v=>setEditUser({...editUser,branchId:v||null})} opts={[['','—'],...db.branches.map(b=>[b.id,b.name])]}/>
+              <DevSelect label="소속 팀" val={editUser.teamId||''} on={v=>setEditUser({...editUser,teamId:v||null})} opts={[['','—'],...db.teams.filter(t=>!editUser.branchId||t.branchId===editUser.branchId).map(t=>[t.id,t.name])]}/>
+              <DevSelect label="직급" val={editUser.grade||'FC'} on={v=>setEditUser({...editUser,grade:v})} opts={GRADES.map(g=>[g.key,g.name])}/>
+              <DevInput label="비밀번호 재설정(로컬 데모)" val={editUser.pw||''} on={v=>setEditUser({...editUser,pw:v})}/>
+              <div className="row" style={{gap:8,marginTop:4}}>
+                <button className="btn blue" style={{height:44}} onClick={()=>saveUser(editUser)}>저장</button>
+                <button onClick={()=>delUser(u.id)} style={{width:90,height:44,borderRadius:12,background:'#E23B4E14',color:'#E23B4E',fontWeight:800}}>삭제</button></div>
+            </div>}
+          </div>;})}
+      </>}
 
-      {sec==='set' && <div style={{marginTop:16}}>
-        <div className="card">
+      {/* 데이터 (모든 컬렉션 조회·삭제) */}
+      {sec==='data' && <>
+        <div style={{fontWeight:900,marginBottom:10}}>데이터 관리</div>
+        {!dataCat && <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10}}>
+          {COLLS.map(c=><div key={c.k} onClick={()=>setDataCat(c.k)} style={{...card,borderRadius:14,padding:16,cursor:'pointer'}}>
+            <div style={{fontSize:22}}>{c.icon}</div>
+            <div style={{fontWeight:800,marginTop:6}}>{c.label}</div>
+            <div style={{fontSize:12,color:'var(--blue)',fontWeight:800}}>{(db[c.k]||[]).length}건</div></div>)}
+        </div>}
+        {dataCat && (()=>{const c=COLLS.find(x=>x.k===dataCat);const rows=db[dataCat]||[];return <>
+          <button onClick={()=>setDataCat(null)} className="chip" style={{background:'var(--soft)',color:'var(--sub)',marginBottom:10}}>‹ 뒤로</button>
+          <div style={{fontWeight:800,marginBottom:8}}>{c.icon} {c.label} ({rows.length})</div>
+          {rows.length?rows.map(x=><div key={x.id} style={{...card,borderRadius:12,padding:'11px 14px',marginBottom:7}} className="row">
+            <div style={{flex:1,minWidth:0}}><div style={{fontWeight:700,fontSize:13.5,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{c.name(x)}</div>
+              <div style={{fontSize:11,color:'var(--sub)'}}>{c.sub(x)}</div></div>
+            <button onClick={()=>delFrom(dataCat,x.id)} style={{color:'#E23B4E',fontSize:16}}>🗑️</button></div>):<div style={{color:'var(--sub)',padding:'10px 0'}}>데이터 없음</div>}
+        </>;})()}
+      </>}
+
+      {/* 설정 (전 기능 컨트롤) */}
+      {sec==='set' && <>
+        <div style={{...card,borderRadius:14,padding:16}}>
           <b>🗂️ 자료 보관기간</b>
-          <div className="muted" style={{fontSize:11.5,margin:'4px 0 10px'}}>기본 무제한. 용량·비용 관리를 위해 기간을 두면 지난 자료는 자동 아카이브(법정 보관기간 준수).</div>
+          <div style={{fontSize:11.5,color:'var(--sub)',margin:'4px 0 10px'}}>기본 무제한. 기간을 두면 지난 자료 자동 아카이브(법정 보관기간 준수).</div>
           <div style={{display:'flex',flexWrap:'wrap',gap:8}}>
             {[[0,'무제한'],[12,'1년'],[24,'2년'],[36,'3년'],[60,'5년']].map(([v,l])=>
-              <button key={v} className="chip" onClick={()=>set({docRetentionMonths:v})}
-                style={{background:ret===v?'var(--navy)':'#EDF1F8',color:ret===v?'#fff':'var(--sub)',padding:'8px 14px'}}>{l}</button>)}</div>
+              <button key={v} onClick={()=>set({docRetentionMonths:v})} className="chip" style={{background:ret===v?'var(--navy)':'var(--soft)',color:ret===v?'#fff':'var(--sub)',padding:'8px 14px'}}>{l}</button>)}</div>
         </div>
-        <div className="card" style={{marginTop:12}}>
+        <div style={{...card,borderRadius:14,padding:16,marginTop:12}}>
           <b>💰 기본 수수료율</b>
           <div className="row" style={{gap:10,marginTop:10,alignItems:'center'}}>
             <input type="number" value={db.settings.commissionRate} onChange={e=>set({commissionRate:+e.target.value||0})}
-              style={{width:90,height:46,border:'1.5px solid var(--line)',borderRadius:11,padding:'0 12px',textAlign:'center',fontWeight:800}}/>
-            <span style={{fontWeight:800}}>%</span>
-            <span className="muted" style={{fontSize:12}}>APE 대비 수수료 환산 기준</span></div>
+              style={{width:90,height:46,border:'1.5px solid var(--line)',borderRadius:11,padding:'0 12px',textAlign:'center',fontWeight:800,background:'var(--card)',color:'var(--ink)'}}/>
+            <span style={{fontWeight:800}}>%</span><span style={{fontSize:12,color:'var(--sub)'}}>APE 대비 환산</span></div>
         </div>
-        <div className="card" style={{marginTop:12}}>
+        <div style={{...card,borderRadius:14,padding:16,marginTop:12}}>
           <b>🏅 직급 규정</b>
-          <div style={{marginTop:8}}>{GRADES.slice(1).map(g=><div key={g.key} className="listrow">
-            <div style={{flex:1,fontWeight:700,fontSize:13}}>{g.emoji} {g.name}</div>
-            <div className="muted" style={{fontSize:11}}>APE {won(g.req.ape)} · 유지 {g.req.ret}%{g.req.rec?' · 정착 '+g.req.rec:''}</div></div>)}</div>
-          <div className="muted" style={{fontSize:11,marginTop:6}}>ⓘ 요건 수치 편집은 백엔드 연결 후</div>
+          <div style={{marginTop:8}}>{GRADES.slice(1).map(g=><div key={g.key} className="row" style={{justifyContent:'space-between',padding:'7px 0',borderTop:'1px solid var(--line)'}}>
+            <div style={{fontWeight:700,fontSize:13}}>{g.emoji} {g.name}</div>
+            <div style={{fontSize:11,color:'var(--sub)'}}>APE {won(g.req.ape)} · 유지 {g.req.ret}%{g.req.rec?' · 정착 '+g.req.rec:''}</div></div>)}</div>
+        </div>
+        <div style={{...card,borderRadius:14,padding:16,marginTop:12}}>
+          <b>🔑 코드</b>
+          <div className="row" style={{justifyContent:'space-between',marginTop:8}}><span style={{fontSize:13}}>지점장 가입 승인 코드</span><b>{HQ_CODE}</b></div>
+          <div className="row" style={{justifyContent:'space-between',marginTop:6}}><span style={{fontSize:13}}>개발자 접속 코드</span><b>{DEV_CODE}</b></div>
         </div>
         <div style={{height:14}}/>
-        <button className="btn ghost" onClick={logout}>로그아웃</button>
-      </div>}
+        <button onClick={resetSeed} style={{width:'100%',height:46,borderRadius:12,background:'#E23B4E14',color:'#E23B4E',fontWeight:800}}>🔄 데모 데이터 초기화</button>
+      </>}
     </div>
 
-    <div className="nav">
-      <button className={sec==='org'?'on':''} onClick={()=>setSec('org')}><span className="ic">🏢</span>조직</button>
-      <button className={sec==='acct'?'on':''} onClick={()=>setSec('acct')}><span className="ic">👤</span>계정</button>
-      <button className={sec==='set'?'on':''} onClick={()=>setSec('set')}><span className="ic">⚙️</span>설정</button>
+    <div className="nav" style={{background:'var(--card)',borderTop:'1px solid var(--line)'}}>
+      {[['dash','대시보드','📊'],['acct','계정','👤'],['data','데이터','🗄️'],['set','설정','⚙️']].map(([k,l,ic])=>
+        <button key={k} className={sec===k?'on':''} onClick={()=>{setSec(k);setDataCat(null);setEditUser(null);}} style={{color:sec===k?'var(--blue)':'var(--sub)'}}><span className="ic">{ic}</span>{l}</button>)}
     </div>
   </div>;
 }
+function DevInput({label,val,on}){ return <div><div style={{fontSize:11.5,fontWeight:700,color:'var(--sub)',marginBottom:5}}>{label}</div>
+  <input value={val} onChange={e=>on(e.target.value)} style={{width:'100%',height:44,border:'1.5px solid var(--line)',borderRadius:11,padding:'0 12px',background:'var(--card)',color:'var(--ink)'}}/></div>; }
+function DevSelect({label,val,on,opts}){ return <div><div style={{fontSize:11.5,fontWeight:700,color:'var(--sub)',marginBottom:5}}>{label}</div>
+  <select value={val} onChange={e=>on(e.target.value)} style={{width:'100%',height:44,border:'1.5px solid var(--line)',borderRadius:11,padding:'0 12px',background:'var(--card)',color:'var(--ink)'}}>
+    {opts.map(([v,l])=><option key={v} value={v}>{l}</option>)}</select></div>; }
 
 /* ───────── 자료 보관함 (기간별 저장·검색 + 카카오톡 전송) ───────── */
 function Documents({db,me,scopeUsers,commit,flash}){
