@@ -324,7 +324,8 @@ async function syncMine(db, me){
 /* ───────── 메인 앱 ───────── */
 function App(){
   const [db,setDb] = useState(null);       // null = 부팅중
-  const [route,setRoute] = useState('landing');
+  const isJoin = (()=>{try{return /(^|[?#&])join/.test(location.search+location.hash)}catch(e){return false}})();
+  const [route,setRoute] = useState(isJoin?'join':'landing');
   const [toast,setToast] = useState('');
   const flash = (m)=>{ setToast(m); setTimeout(()=>setToast(''),2200); };
   const me = db ? (db.users.find(u=>u.id===db.session) || null) : null;
@@ -338,10 +339,18 @@ function App(){
 
   // 부팅: 실제 Supabase 세션만 유지(새로고침 시 홈). 데모/개발자 세션은 유지 안 함(항상 랜딩부터).
   useEffect(()=>{ let alive=true; (async()=>{
+    if(isJoin){ const s=seed(); if(alive){ setDb({...s,mode:'demo',session:null}); setRoute('join'); } return; }  // 공개 지원 페이지
     try{ const {data}=await SB.auth.getSession();
       if(data && data.session){ const d=await loadAll(data.session.user.id); if(alive){ setDb(d); setRoute('home'); } return; } }catch(e){}
     const s=seed(); if(alive){ setDb({...s,mode:'demo',session:null}); setRoute('landing'); }  // 데모는 세션 복원 안 함
   })(); return ()=>{alive=false}; },[]);
+
+  // 📩 공개 지원 접수 → 팀장 코드가 있으면 그 팀 리쿠르팅 '가망'으로, 없으면 Supabase applications 테이블에 저장(있으면)
+  const submitApplication = async(app)=>{
+    // 코드로 소속 팀 찾기(선택). 실제 백엔드면 applications에 insert.
+    try{ await SB.from('applications').insert({name:app.name,phone:app.phone,region:app.region,motive:app.motive,ref_code:app.ref||null,created_at:new Date().toISOString()}); }catch(e){}
+    return {ok:true};
+  };
 
   // 데모 모드: 저장할 때 session은 빼고 저장(새로고침해도 개발자/데모로 안 튐)
   const commit = (nd)=>{ setDb({...nd}); if(nd.mode==='real'){ const m=nd.users.find(u=>u.id===nd.session); syncMine(nd,m).catch(()=>{}); } else { const {session,...rest}=nd; DB.save(rest); } };
@@ -382,7 +391,8 @@ function App(){
 
   const tp={theme,toggleTheme};
   let view;
-  if(route==='landing') view=<Landing go={go} onDev={onDev} {...tp}/>;
+  if(route==='join') view=<JoinPage go={go} submit={submitApplication} flash={flash} {...tp}/>;
+  else if(route==='landing') view=<Landing go={go} onDev={onDev} {...tp}/>;
   else if(route==='login') view=<Login go={go} login={login} demoLogin={demoLogin} flash={flash} {...tp}/>;
   else if(route==='signup') view=<Signup go={go} signup={signup} flash={flash} {...tp}/>;
   else if(route==='terms') view=<Legal kind="terms" go={go}/>;
@@ -392,6 +402,65 @@ function App(){
   else view=<Landing go={go} onDev={onDev} {...tp}/>;
 
   return <div className="app">{view}{toast&&<div className="toast">{toast}</div>}</div>;
+}
+
+/* ───────── 공개 채용/지원 페이지 (로그인 불필요, 검색 유입 랜딩) ───────── */
+function JoinPage({go,submit,flash,theme,toggleTheme}){
+  const [f,setF]=useState({name:'',phone:'',region:'',motive:'',ref:''});
+  const [done,setDone]=useState(false); const [busy,setBusy]=useState(false); const [err,setErr]=useState('');
+  const set=(k,v)=>setF({...f,[k]:v});
+  const go2=async()=>{ setErr(''); if(!f.name||f.phone.length<10) return setErr('이름·연락처를 입력해주세요'); setBusy(true);
+    await submit(f); setBusy(false); setDone(true); };
+
+  if(done) return <div className="scroll" style={{background:'var(--landbg)'}}>
+    <ThemeFab theme={theme} toggleTheme={toggleTheme}/>
+    <div className="pad" style={{paddingTop:80,textAlign:'center'}}>
+      <div style={{fontSize:56}}>🎉</div>
+      <div className="h1" style={{fontSize:24,marginTop:10}}>지원이 접수되었습니다</div>
+      <div className="muted" style={{marginTop:8,lineHeight:1.6}}>담당 매니저가 확인 후 <b>{f.phone}</b>로<br/>연락드릴게요. 감사합니다!</div>
+      <div style={{height:28}}/>
+      <button className="btn ghost" onClick={()=>go('landing')}>앱 둘러보기</button>
+    </div>
+  </div>;
+
+  return <div className="scroll" style={{background:'var(--landbg)'}}>
+    <ThemeFab theme={theme} toggleTheme={toggleTheme}/>
+    <div className="pad" style={{paddingTop:20}}>
+      {/* 히어로 */}
+      <div style={{position:'relative',borderRadius:20,overflow:'hidden',boxShadow:'0 12px 30px rgba(20,40,90,.16)'}}>
+        <img src="/hero.jpg" alt="" style={{width:'100%',height:184,objectFit:'cover',display:'block'}}/>
+        <div style={{position:'absolute',inset:0,background:'linear-gradient(180deg,rgba(11,27,63,.15),rgba(11,27,63,.82))'}}/>
+        <div style={{position:'absolute',left:18,right:18,bottom:16,color:'#fff'}}>
+          <div style={{fontSize:12.5,opacity:.9,fontWeight:600}}>보험 전문가로 성장하고 싶다면</div>
+          <div style={{fontSize:25,fontWeight:900,letterSpacing:-.5,marginTop:3,lineHeight:1.25}}>당신의 커리어를<br/><span style={{color:'#7FB0FF'}}>인슈런스 석세스</span>와</div>
+        </div>
+      </div>
+
+      {/* 왜 우리인가 */}
+      <div style={{fontWeight:900,fontSize:16,margin:'20px 0 10px'}}>왜 함께해야 할까요?</div>
+      <div style={{display:'flex',flexDirection:'column',gap:10}}>
+        {[['🎓','체계적인 13주 도입 교육','신인 정착률 업계 최고 수준으로 밀착 관리'],['📱','매일의 할 일 자동화','고객·매출·기념일을 앱이 챙겨줘 실적에 집중'],['🤝','투명한 수수료·승급','데이터로 증명되는 공정한 성장 경로']].map(([ic,t,d])=>
+          <div key={t} className="card" style={{display:'flex',alignItems:'center',gap:13}}>
+            <div style={{width:44,height:44,borderRadius:12,background:'var(--soft)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:22,flex:'none'}}>{ic}</div>
+            <div><div style={{fontWeight:800,fontSize:14}}>{t}</div><div className="muted" style={{fontSize:11.5,marginTop:2,lineHeight:1.4}}>{d}</div></div></div>)}
+      </div>
+
+      {/* 지원 폼 */}
+      <div style={{fontWeight:900,fontSize:16,margin:'22px 0 12px'}}>💬 3분 무료 상담 신청</div>
+      <div className="card">
+        <div className="field"><label>이름</label><input value={f.name} onChange={e=>set('name',e.target.value)} placeholder="홍길동"/></div>
+        <div className="field"><label>연락처</label><input value={f.phone} onChange={e=>set('phone',e.target.value.replace(/\D/g,''))} placeholder="01012345678" inputMode="numeric"/></div>
+        <div className="field"><label>거주 지역 (선택)</label><input value={f.region} onChange={e=>set('region',e.target.value)} placeholder="서울 강남구"/></div>
+        <div className="field" style={{marginBottom:0}}><label>궁금한 점 (선택)</label>
+          <textarea value={f.motive} onChange={e=>set('motive',e.target.value)} rows={3} placeholder="이직 고민, 소득 구조, 교육 등 편하게 남겨주세요"
+            style={{width:'100%',border:'1.5px solid var(--line)',borderRadius:12,padding:12,fontFamily:'inherit',fontSize:15,background:'var(--field)',color:'var(--ink)',resize:'vertical'}}/></div>
+        {err&&<div className="err" style={{marginTop:10}}>{err}</div>}
+      </div>
+      <div style={{height:14}}/>
+      <button className="btn blue" disabled={busy} onClick={go2}>{busy?'접수 중…':'상담 신청하기'}</button>
+      <div className="muted" style={{textAlign:'center',fontSize:11,margin:'12px 0 4px'}}>이미 회원이신가요? <span className="link" onClick={()=>go('login')}>로그인</span></div>
+    </div>
+  </div>;
 }
 
 /* ───────── 시작 화면 ───────── */
