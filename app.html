@@ -72,11 +72,18 @@
 <div id="root"></div>
 <script crossorigin src="https://cdn.jsdelivr.net/npm/react@18.3.1/umd/react.production.min.js"></script>
 <script crossorigin src="https://cdn.jsdelivr.net/npm/react-dom@18.3.1/umd/react-dom.production.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@babel/standalone@7.25.6/babel.min.js"></script>
 <script type="text/babel" data-presets="react">
 const {useState,useEffect} = React;
 
-/* ───────── 로컬 저장소 (백엔드는 나중에 Supabase로 교체) ───────── */
+/* ───────── Supabase 클라이언트 ───────── */
+const SB_URL='https://lfpfofwlesfriegkwold.supabase.co';
+const SB_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxmcGZvZndsZXNmcmllZ2t3b2xkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTA0MjIzNzYsImV4cCI6MjEwNTk5ODM3Nn0.ySLCGS8HaPR_b3mwFXvoug2UzdaPAOr9zqCeWC5waW8';
+const SB = window.supabase.createClient(SB_URL, SB_KEY);
+const phoneEmail=(p)=> String(p).replace(/\D/g,'')+'@insu.app';
+
+/* ───────── 로컬 저장소(데모 모드용) ───────── */
 const DB = {
   load(){ try{return JSON.parse(localStorage.getItem('insu_db'))||null}catch(e){return null} },
   save(d){ localStorage.setItem('insu_db', JSON.stringify(d)) },
@@ -254,28 +261,109 @@ const ROLE = {
   agent: {label:'설계사', chip:'tag-agent',  ic:'🧑‍💼',d:'본인 고객·실적'},
 };
 
+/* ───────── Supabase 데이터 매핑(snake ↔ camel) ───────── */
+const uuid=()=> (window.crypto&&crypto.randomUUID)?crypto.randomUUID():'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g,c=>{const r=Math.random()*16|0;return (c==='x'?r:(r&3|8)).toString(16)});
+const _d=(v)=>v||null;
+const fromProfile=r=>({id:r.id,name:r.name,phone:r.phone,role:r.role,branchId:r.branch_id,teamId:r.team_id,recruiterId:r.recruiter_id,code:r.code,grade:r.grade||'FC',goalApe:r.goal_ape,consent:r.consent||{}});
+const toProfile=u=>({id:u.id,name:u.name,phone:String(u.phone||'').replace(/\D/g,''),role:u.role,branch_id:u.branchId,team_id:u.teamId,recruiter_id:u.recruiterId,code:u.code,grade:u.grade,goal_ape:u.goalApe,consent:u.consent||{}});
+const fromBranch=r=>({id:r.id,name:r.name,code:r.code,managerId:r.manager_id});
+const toBranch=b=>({id:b.id,name:b.name,code:b.code,manager_id:b.managerId});
+const fromTeam=r=>({id:r.id,branchId:r.branch_id,name:r.name,code:r.code,leaderId:r.leader_id});
+const toTeam=t=>({id:t.id,branch_id:t.branchId,name:t.name,code:t.code,leader_id:t.leaderId});
+const fromCustomer=r=>({id:r.id,ownerId:r.owner_id,name:r.name,job:r.job,income:r.income,birthday:r.birthday||'',anniversary:r.anniversary||'',childbirth:r.childbirth||'',surgery:r.surgery||'',discharge:r.discharge||'',lastContact:r.last_contact||'',memo:r.memo||'',contracts:r.contracts||[]});
+const toCustomer=c=>({id:c.id,owner_id:c.ownerId,name:c.name,job:c.job,income:c.income||0,birthday:_d(c.birthday),anniversary:_d(c.anniversary),childbirth:_d(c.childbirth),surgery:_d(c.surgery),discharge:_d(c.discharge),last_contact:_d(c.lastContact),memo:c.memo||'',contracts:c.contracts||[]});
+const fromSale=r=>({id:r.id,agentId:r.agent_id,month:r.month,product:r.product,ape:r.ape,commission:r.commission,commStatus:r.comm_status});
+const toSale=s=>({id:s.id,agent_id:s.agentId,month:s.month,product:s.product,ape:s.ape,commission:s.commission,comm_status:s.commStatus});
+const fromRecruit=r=>({id:r.id,ownerId:r.owner_id,branchId:r.branch_id,teamId:r.team_id,name:r.name,phone:r.phone,stage:r.stage,source:r.source,addedAt:r.added_at||'',weekAct:r.week_act||[]});
+const toRecruit=r=>({id:r.id,owner_id:r.ownerId,branch_id:r.branchId,team_id:r.teamId,name:r.name,phone:r.phone,stage:r.stage,source:r.source,added_at:_d(r.addedAt),week_act:r.weekAct||[]});
+const fromClaim=r=>({id:r.id,customerId:r.customer_id,ownerId:r.owner_id,type:r.type,hospital:r.hospital,admitDate:r.admit_date||'',dischargeDate:r.discharge_date||'',amount:r.amount,docs:r.docs||{},status:r.status});
+const toClaim=c=>({id:c.id,customer_id:c.customerId,owner_id:c.ownerId,type:c.type,hospital:c.hospital,admit_date:_d(c.admitDate),discharge_date:_d(c.dischargeDate),amount:c.amount,docs:c.docs||{},status:c.status});
+const fromDoc=r=>({id:r.id,customerId:r.customer_id,ownerId:r.owner_id,type:r.type,name:r.name,date:r.doc_date||'',size:r.size,dataUrl:''});
+const toDoc=d=>({id:d.id,customer_id:_d(d.customerId),owner_id:d.ownerId,type:d.type,name:d.name,doc_date:_d(d.date),size:d.size||0,storage_path:null});
+const fromPost=r=>({id:r.id,cat:r.cat,title:r.title,body:r.body,authorId:r.author_id,by:r.by_name,hot:r.hot,date:r.post_date||'',isPublic:r.is_public});
+const toPost=p=>({id:p.id,cat:p.cat,title:p.title,body:p.body,author_id:p.authorId,by_name:p.by,hot:!!p.hot,post_date:_d(p.date),is_public:!!p.isPublic});
+const fromSettings=r=>({docRetentionMonths:r?r.doc_retention_months:0,commissionRate:r?r.commission_rate:35});
+
+async function loadAll(sessionId){
+  const q=(t)=>SB.from(t).select('*');
+  const [pf,br,tm,cu,sa,re,cl,dc,po,st]=await Promise.all([q('profiles'),q('branches'),q('teams'),q('customers'),q('sales'),q('recruits'),q('claims'),q('documents'),q('posts'),q('app_settings')]);
+  return { mode:'real', session:sessionId,
+    users:(pf.data||[]).map(fromProfile), branches:(br.data||[]).map(fromBranch), teams:(tm.data||[]).map(fromTeam),
+    customers:(cu.data||[]).map(fromCustomer), sales:(sa.data||[]).map(fromSale), recruits:(re.data||[]).map(fromRecruit),
+    claims:(cl.data||[]).map(fromClaim), docs:(dc.data||[]).map(fromDoc), posts:(po.data||[]).map(fromPost),
+    settings:fromSettings((st.data||[])[0]) };
+}
+// 내 소유 행만 Supabase에 업서트(RLS가 내 것만 허용) — commit 때 자동
+async function syncMine(db, me){
+  if(!me) return;
+  const up=async(t,rows)=>{ if(rows.length){ const {error}=await SB.from(t).upsert(rows); if(error) console.warn('sync '+t, error.message); } };
+  await up('profiles', db.users.filter(u=>u.id===me.id).map(toProfile));
+  await up('branches', db.branches.filter(b=>b.managerId===me.id).map(toBranch));
+  await up('teams', db.teams.filter(t=>t.leaderId===me.id).map(toTeam));
+  await up('customers', db.customers.filter(c=>c.ownerId===me.id).map(toCustomer));
+  await up('sales', db.sales.filter(s=>s.agentId===me.id).map(toSale));
+  await up('recruits', db.recruits.filter(r=>r.ownerId===me.id).map(toRecruit));
+  await up('claims', db.claims.filter(c=>c.ownerId===me.id).map(toClaim));
+  await up('documents', db.docs.filter(d=>d.ownerId===me.id).map(toDoc));
+  await up('posts', db.posts.filter(p=>p.authorId===me.id).map(toPost));
+  if(me.role==='hq' && db.settings) await SB.from('app_settings').upsert({id:1,doc_retention_months:db.settings.docRetentionMonths,commission_rate:db.settings.commissionRate});
+}
+
 /* ───────── 메인 앱 ───────── */
 function App(){
-  const [db,setDb] = useState(seed);
-  const [route,setRoute] = useState(db.session ? 'home' : 'landing');
+  const [db,setDb] = useState(null);       // null = 부팅중
+  const [route,setRoute] = useState('landing');
   const [toast,setToast] = useState('');
-  const commit = (nd)=>{ DB.save(nd); setDb({...nd}); };
-  const me = db.users.find(u=>u.id===db.session) || null;
-  const flash = (m)=>{ setToast(m); setTimeout(()=>setToast(''),1800); };
+  const flash = (m)=>{ setToast(m); setTimeout(()=>setToast(''),2200); };
+  const me = db ? (db.users.find(u=>u.id===db.session) || null) : null;
 
+  // 부팅: Supabase 세션 있으면 실데이터, 없으면 데모(로컬)
+  useEffect(()=>{ let alive=true; (async()=>{
+    try{ const {data}=await SB.auth.getSession();
+      if(data && data.session){ const d=await loadAll(data.session.user.id); if(alive){ setDb(d); setRoute('home'); } return; } }catch(e){}
+    const s=seed(); if(alive){ setDb({...s,mode:'demo'}); setRoute(s.session?'home':'landing'); }
+  })(); return ()=>{alive=false}; },[]);
+
+  const commit = (nd)=>{ setDb({...nd}); if(nd.mode==='real'){ const m=nd.users.find(u=>u.id===nd.session); syncMine(nd,m).catch(()=>{}); } else { DB.save(nd); } };
   const go = (r)=>setRoute(r);
-  const login = (uid)=>{ const nd={...db,session:uid}; commit(nd); go('home'); };
-  const logout = ()=>{ const nd={...db,session:null}; commit(nd); go('landing'); };
 
-  // 🔧 개발자(본사 관리자) 페이지 — 왼쪽 상단 그래프 7클릭 + 코드
+  // 실제 로그인(Supabase, 전화번호+비번)
+  const login = async(phone,pw)=>{
+    const {data,error}=await SB.auth.signInWithPassword({email:phoneEmail(phone),password:pw});
+    if(error) return {error:'전화번호 또는 비밀번호가 올바르지 않습니다'};
+    const d=await loadAll(data.user.id); setDb(d); setRoute('home'); return {};
+  };
+  // 데모 로그인(로컬 샘플)
+  const demoLogin = (role)=>{ const s=seed(); const u=s.users.find(x=>x.role===role); const nd={...s,mode:'demo',session:u?u.id:null}; DB.save(nd); setDb(nd); setRoute('home'); };
+  // 실제 회원가입(Supabase)
+  const signup = async(p)=>{
+    const code=(p.ref||'').trim().toUpperCase();
+    let branchId=null,teamId=null,recruiterId=null,myCode=null,grade='FC';
+    if(p.role==='branch'){ if(code!==HQ_CODE) return {error:'본사 관리자 코드가 아닙니다'}; }
+    else if(p.role==='team'){ const {data}=await SB.from('branches').select('*').eq('code',code).maybeSingle(); if(!data) return {error:'지점장 코드를 찾을 수 없습니다'}; branchId=data.id; recruiterId=data.manager_id; }
+    else { const {data}=await SB.from('teams').select('*').eq('code',code).maybeSingle(); if(!data) return {error:'팀장 코드를 찾을 수 없습니다'}; teamId=data.id; branchId=data.branch_id; recruiterId=data.leader_id; }
+    const {data:au,error:ae}=await SB.auth.signUp({email:phoneEmail(p.phone),password:p.pw});
+    if(ae) return {error: /registered|exists/i.test(ae.message)?'이미 가입된 전화번호입니다':ae.message};
+    const uid=au.user.id;
+    if(p.role==='branch'){ branchId=uuid(); myCode=rid('GN'); grade='PLAT'; const {error}=await SB.from('branches').insert({id:branchId,name:p.name+' 지점',code:myCode,manager_id:uid}); if(error) return {error:'지점 생성 실패: '+error.message}; }
+    else if(p.role==='team'){ teamId=uuid(); myCode=rid('TM'); grade='GOLD'; const {error}=await SB.from('teams').insert({id:teamId,branch_id:branchId,name:p.name+' 팀',code:myCode,leader_id:uid}); if(error) return {error:'팀 생성 실패: '+error.message}; }
+    const {error:pe}=await SB.from('profiles').insert({id:uid,name:p.name,phone:String(p.phone).replace(/\D/g,''),role:p.role,branch_id:branchId,team_id:teamId,recruiter_id:recruiterId,code:myCode,grade,goal_ape:p.role==='agent'?200:300,consent:p.consent||{}});
+    if(pe) return {error:'프로필 생성 실패: '+pe.message};
+    const d=await loadAll(uid); setDb(d); setRoute('home'); return {};
+  };
+  const logout = async()=>{ try{ if(db && db.mode==='real') await SB.auth.signOut(); }catch(e){}
+    const s=seed(); setDb({...s,mode:'demo',session:null}); setRoute('landing'); };
+
+  // 🔧 개발자(본사 관리자) — 왼쪽 상단 그래프 7클릭 + 코드 → 데모 본사 화면
   const onDev = ()=>{ const pw=window.prompt('🔧 개발자 페이지 접속 코드'); if(pw==null) return;
-    if(pw===DEV_CODE){ const hq=db.users.find(u=>u.role==='hq'); if(hq){login(hq.id);} else flash('본사 계정 없음'); }
-    else flash('코드가 올바르지 않습니다'); };
+    if(pw===DEV_CODE){ demoLogin('hq'); } else flash('코드가 올바르지 않습니다'); };
+
+  if(!db) return <div className="app"><div className="scroll" style={{display:'flex',alignItems:'center',justifyContent:'center'}}><div className="muted">불러오는 중…</div></div></div>;
 
   let view;
   if(route==='landing') view=<Landing go={go} onDev={onDev}/>;
-  else if(route==='login') view=<Login db={db} go={go} login={login} flash={flash}/>;
-  else if(route==='signup') view=<Signup db={db} commit={commit} go={go} login={login} flash={flash}/>;
+  else if(route==='login') view=<Login go={go} login={login} demoLogin={demoLogin} flash={flash}/>;
+  else if(route==='signup') view=<Signup go={go} signup={signup} flash={flash}/>;
   else if(route==='terms') view=<Legal kind="terms" go={go}/>;
   else if(route==='privacy') view=<Legal kind="privacy" go={go}/>;
   else if(route==='home' && me && me.role==='hq') view=<Admin db={db} me={me} logout={logout} flash={flash} commit={commit}/>;
@@ -313,46 +401,29 @@ function Landing({go,onDev}){
 }
 
 /* ───────── 회원가입 (역할 + 추천인코드 + 약관) ───────── */
-function Signup({db,commit,go,login,flash}){
+function Signup({go,signup,flash}){
   const [step,setStep]=useState(1);
   const [role,setRole]=useState('agent');
   const [f,setF]=useState({name:'',phone:'',pw:'',ref:''});
   const [agree,setAgree]=useState({tos:false,privacy:false,marketing:false});
-  const [err,setErr]=useState('');
+  const [err,setErr]=useState(''); const [busy,setBusy]=useState(false);
   const set=(k,v)=>setF({...f,[k]:v});
 
-  // 추천인코드 해석 → 소속 미리보기
-  const refInfo = (()=>{
-    if(!f.ref) return null;
-    const code=f.ref.trim().toUpperCase();
-    if(role==='branch'){ return code===HQ_CODE ? {ok:true,text:'본사 관리자 코드 확인 — 새 지점을 개설합니다'} : {ok:false,text:'본사 관리자 코드가 아닙니다'}; }
-    if(role==='team'){ const b=db.branches.find(x=>x.code===code); return b?{ok:true,text:`${b.name} 소속 팀장으로 등록`}:{ok:false,text:'해당 지점장 코드를 찾을 수 없습니다'}; }
-    const t=db.teams.find(x=>x.code===code); const b=t&&db.branches.find(x=>x.id===t.branchId);
-    return t?{ok:true,text:`${b?b.name:''} · ${t.name} 소속 설계사로 등록`}:{ok:false,text:'해당 팀장 코드를 찾을 수 없습니다'};
-  })();
+  // 지점장(본사코드)만 로컬 미리보기, 팀장/설계사 코드는 가입 시 서버 검증
+  const refInfo = (()=>{ if(!f.ref) return null; const code=f.ref.trim().toUpperCase();
+    if(role==='branch') return code===HQ_CODE?{ok:true,text:'본사 코드 확인 — 새 지점을 개설합니다'}:{ok:false,text:'본사 관리자 코드가 아닙니다'};
+    return null; })();
 
-  const doSignup=()=>{
+  const doSignup=async()=>{
     setErr('');
-    if(!f.name||f.phone.length<10||f.pw.length<4){ setStep(2); return setErr('이름·휴대폰(10자리↑)·비밀번호(4자리↑)를 확인하세요'); }
-    if(db.users.find(u=>u.phone===f.phone)) return setErr('이미 가입된 휴대폰입니다');
-    if(!refInfo||!refInfo.ok){ setStep(2); return setErr('추천인 코드를 확인하세요'); }
+    if(!f.name||f.phone.length<10||f.pw.length<6){ setStep(2); return setErr('이름·전화번호(10자리↑)·비밀번호(6자리↑)를 확인하세요'); }
+    if(!f.ref){ setStep(2); return setErr('추천인 코드를 입력하세요'); }
     if(!agree.tos||!agree.privacy) return setErr('필수 약관에 동의해주세요');
-    const code=f.ref.trim().toUpperCase();
-    const nd={...db, branches:[...db.branches], teams:[...db.teams], users:[...db.users]};
-    const uid=rid('U');
-    let branchId=null,teamId=null,recruiterId=null,myCode=null;
-    if(role==='branch'){
-      branchId=rid('b'); myCode=rid('GN');
-      nd.branches.push({id:branchId,name:f.name+' 지점',code:myCode,managerId:uid});
-    } else if(role==='team'){
-      const b=db.branches.find(x=>x.code===code); branchId=b.id; recruiterId=b.managerId; myCode=rid('TM');
-      teamId=rid('t'); nd.teams.push({id:teamId,branchId,name:f.name+' 팀',code:myCode,leaderId:uid});
-    } else {
-      const t=db.teams.find(x=>x.code===code); teamId=t.id; branchId=t.branchId; recruiterId=t.leaderId;
-    }
-    nd.users.push({id:uid,name:f.name,phone:f.phone,pw:f.pw,role,branchId,teamId,recruiterId,code:myCode,
-      consent:{...agree,at:Date.now()},createdAt:Date.now()});
-    commit(nd); flash('가입 완료! 환영합니다 🎉'); login(uid);
+    setBusy(true);
+    const res=await signup({role,name:f.name,phone:f.phone,pw:f.pw,ref:f.ref,consent:{...agree,at:Date.now()}});
+    setBusy(false);
+    if(res.error){ if(/코드/.test(res.error)) setStep(2); return setErr(res.error); }
+    flash('가입 완료! 환영합니다 🎉');
   };
 
   return <div className="scroll">
@@ -376,15 +447,15 @@ function Signup({db,commit,go,login,flash}){
     {step===2 && <>
       <div className="h1" style={{fontSize:22,marginBottom:16}}>정보를 입력하세요</div>
       <div className="field"><label>이름</label><input value={f.name} onChange={e=>set('name',e.target.value)} placeholder="홍길동"/></div>
-      <div className="field"><label>휴대폰 (아이디)</label><input value={f.phone} onChange={e=>set('phone',e.target.value.replace(/\D/g,''))} placeholder="01012345678" inputMode="numeric"/></div>
-      <div className="field"><label>비밀번호</label><input type="password" value={f.pw} onChange={e=>set('pw',e.target.value)} placeholder="4자리 이상"/></div>
+      <div className="field"><label>전화번호 (아이디)</label><input value={f.phone} onChange={e=>set('phone',e.target.value.replace(/\D/g,''))} placeholder="01012345678" inputMode="numeric"/></div>
+      <div className="field"><label>비밀번호</label><input type="password" value={f.pw} onChange={e=>set('pw',e.target.value)} placeholder="6자리 이상"/></div>
       <div className="field"><label>추천인 코드 {role==='branch'?'(본사 관리자 코드)':role==='team'?'(지점장 코드)':'(팀장 코드)'}</label>
-        <input value={f.ref} onChange={e=>set('ref',e.target.value.toUpperCase())} placeholder={role==='branch'?'HQ코드':'예: TM-3C4D'}/>
+        <input value={f.ref} onChange={e=>set('ref',e.target.value.toUpperCase())} placeholder={role==='branch'?'HQ2026':'예: TM-3C4D'}/>
         {refInfo && <div className={refInfo.ok?'ok':'err'}>{refInfo.ok?'✓ ':'✕ '}{refInfo.text}</div>}
-        {role==='agent' && <div className="muted" style={{fontSize:11,marginTop:6}}>데모 팀장 코드: <b>TM-3C4D</b> / 지점장 코드: <b>GN-1A2B</b> / 본사: <b>HQ2026</b></div>}
+        <div className="muted" style={{fontSize:11,marginTop:6}}>{role==='branch'?'본사 관리자 코드 HQ2026 입력':role==='team'?'지점장에게 지점 코드를 받으세요':'팀장에게 팀 코드를 받으세요'}</div>
       </div>
       {err&&<div className="err" style={{marginBottom:10}}>{err}</div>}
-      <button className="btn" onClick={()=>{ if(!f.name||f.phone.length<10||f.pw.length<4){return setErr('이름·휴대폰·비밀번호를 확인하세요')} if(!refInfo||!refInfo.ok){return setErr('추천인 코드를 확인하세요')} setErr(''); setStep(3); }}>다음 →</button>
+      <button className="btn" onClick={()=>{ if(!f.name||f.phone.length<10||f.pw.length<6){return setErr('이름·전화번호·비밀번호(6자리↑)를 확인하세요')} if(!f.ref){return setErr('추천인 코드를 입력하세요')} if(role==='branch'&&f.ref.trim().toUpperCase()!==HQ_CODE){return setErr('본사 관리자 코드가 아닙니다')} setErr(''); setStep(3); }}>다음 →</button>
     </>}
 
     {step===3 && <>
@@ -398,7 +469,7 @@ function Signup({db,commit,go,login,flash}){
       </div>
       {err&&<div className="err" style={{margin:'10px 0'}}>{err}</div>}
       <div style={{height:16}}/>
-      <button className="btn blue" disabled={!agree.tos||!agree.privacy} onClick={doSignup}>가입 완료</button>
+      <button className="btn blue" disabled={!agree.tos||!agree.privacy||busy} onClick={doSignup}>{busy?'가입 중…':'가입 완료'}</button>
     </>}
     </div>
   </div>;
@@ -412,26 +483,25 @@ function Ck({on,set,label,onView}){
 }
 
 /* ───────── 로그인 ───────── */
-function Login({db,go,login,flash}){
-  const [phone,setPhone]=useState(''),[pw,setPw]=useState(''),[err,setErr]=useState('');
-  const submit=()=>{ const u=db.users.find(x=>x.phone===phone&&x.pw===pw); if(!u)return setErr('아이디 또는 비밀번호가 올바르지 않습니다'); login(u.id); };
-  const demo=(role)=>{ const u=db.users.find(x=>x.role===role); if(u)login(u.id); };
+function Login({go,login,demoLogin,flash}){
+  const [phone,setPhone]=useState(''),[pw,setPw]=useState(''),[err,setErr]=useState(''),[busy,setBusy]=useState(false);
+  const submit=async()=>{ setErr(''); if(phone.length<10||!pw)return setErr('전화번호·비밀번호를 입력하세요'); setBusy(true); const res=await login(phone,pw); setBusy(false); if(res.error) setErr(res.error); };
   return <div className="scroll">
     <div className="top"><button className="back" onClick={()=>go('landing')}>‹</button><div style={{fontWeight:800}}>로그인</div></div>
     <div className="pad">
       <div className="h1" style={{fontSize:22,marginBottom:6}}>다시 오신 것을<br/>환영합니다</div>
       <div className="muted" style={{marginBottom:20}}>보험 전문가 계정으로 로그인하세요.</div>
-      <div className="field"><label>휴대폰 (아이디)</label><input value={phone} onChange={e=>setPhone(e.target.value.replace(/\D/g,''))} placeholder="01012345678" inputMode="numeric"/></div>
+      <div className="field"><label>전화번호 (아이디)</label><input value={phone} onChange={e=>setPhone(e.target.value.replace(/\D/g,''))} placeholder="01012345678" inputMode="numeric"/></div>
       <div className="field"><label>비밀번호</label><input type="password" value={pw} onChange={e=>setPw(e.target.value)} placeholder="비밀번호"/></div>
       {err&&<div className="err" style={{marginBottom:10}}>{err}</div>}
-      <button className="btn" onClick={submit}>로그인</button>
-      <div style={{textAlign:'center',margin:'18px 0',color:'#9AA6BE',fontSize:12}}>— 데모 계정으로 둘러보기 —</div>
+      <button className="btn" disabled={busy} onClick={submit}>{busy?'로그인 중…':'로그인'}</button>
+      <div style={{textAlign:'center',margin:'18px 0',color:'#9AA6BE',fontSize:12}}>— 데모 계정으로 둘러보기(로컬) —</div>
       <div className="row" style={{gap:8}}>
-        <button className="btn ghost" style={{height:44,fontSize:13}} onClick={()=>demo('branch')}>지점장</button>
-        <button className="btn ghost" style={{height:44,fontSize:13}} onClick={()=>demo('team')}>팀장</button>
-        <button className="btn ghost" style={{height:44,fontSize:13}} onClick={()=>demo('agent')}>설계사</button>
+        <button className="btn ghost" style={{height:44,fontSize:13}} onClick={()=>demoLogin('branch')}>지점장</button>
+        <button className="btn ghost" style={{height:44,fontSize:13}} onClick={()=>demoLogin('team')}>팀장</button>
+        <button className="btn ghost" style={{height:44,fontSize:13}} onClick={()=>demoLogin('agent')}>설계사</button>
       </div>
-      <div style={{textAlign:'center',marginTop:18,fontSize:13,color:'var(--sub)'}}>아직 계정이 없으신가요? <span className="link" onClick={()=>go('signup')}>회원가입</span></div>
+      <div style={{textAlign:'center',marginTop:18,fontSize:13,color:'var(--sub)'}}>계정이 없으신가요? <span className="link" onClick={()=>go('signup')}>회원가입</span></div>
     </div>
   </div>;
 }
@@ -468,7 +538,7 @@ function Home({db,me,logout,flash,commit}){
   // 고객 저장/수정/액션
   const saveCustomer=(cst)=>{ const nd={...db,customers:[...db.customers]};
     const i=nd.customers.findIndex(x=>x.id===cst.id);
-    if(i>=0) nd.customers[i]=cst; else nd.customers.push({...cst,id:'C'+Date.now(),ownerId:me.id});
+    if(i>=0) nd.customers[i]=cst; else nd.customers.push({...cst,id:uuid(),ownerId:me.id});
     commit(nd); };
   const markContact=(cid)=>{ const nd={...db,customers:db.customers.map(c=>c.id===cid?{...c,lastContact:new Date().toISOString().slice(0,10)}:c)}; commit(nd); flash('연락 완료로 기록했어요 ✓'); };
 
@@ -673,7 +743,7 @@ function Recruiting({db,me,commit,flash}){
   const advance=(r)=>{ const i=REC_STAGES.indexOf(r.stage); if(i>=REC_STAGES.length-1)return;
     commit({...db,recruits:db.recruits.map(x=>x.id===r.id?{...x,stage:REC_STAGES[i+1]}:x)}); flash(r.name+' → '+REC_STAGES[i+1]); };
   const addRec=()=>{ if(!nf.name)return flash('이름을 입력하세요');
-    commit({...db,recruits:[...db.recruits,{id:'R'+Date.now(),ownerId:me.id,branchId:me.branchId,
+    commit({...db,recruits:[...db.recruits,{id:uuid(),ownerId:me.id,branchId:me.branchId,
       teamId:me.role==='team'?me.teamId:(db.teams.find(t=>t.branchId===me.branchId)||{}).id,
       name:nf.name,phone:nf.phone,stage:'가망',source:nf.source,addedAt:new Date().toISOString().slice(0,10)}]});
     setNf({name:'',phone:'',source:'지인소개'}); setAddOpen(false); flash('후보 등록 ✓'); };
@@ -865,7 +935,7 @@ function Documents({db,me,scopeUsers,commit,flash}){
     .sort((a,b)=>b.date.localeCompare(a.date));
 
   const onFile=(e)=>{ const f=e.target.files[0]; if(!f)return;
-    const add=(dataUrl)=> commit({...db,docs:[...db.docs,{id:'D'+Date.now(),customerId:'',ownerId:me.id,
+    const add=(dataUrl)=> commit({...db,docs:[...db.docs,{id:uuid(),customerId:'',ownerId:me.id,
       type:'기타',name:f.name,date:new Date().toISOString().slice(0,10),size:f.size,dataUrl:dataUrl||''}]});
     if(f.size>800*1024){ add(''); flash('메타데이터만 저장(용량 큰 파일은 백엔드 연결 후 실보관)'); }
     else { const r=new FileReader(); r.onload=()=>{add(r.result);flash('자료 저장됨 ✓');}; r.readAsDataURL(f); }
@@ -1094,7 +1164,7 @@ function Community({db,me,commit,flash}){
   const list=posts.filter(p=>cat==='전체'||p.cat===cat);
   const canNotice = me.role==='hq'||me.role==='branch'||me.role==='team';
   const submit=()=>{ if(!f.title.trim())return flash('제목을 입력하세요');
-    commit({...db,posts:[...db.posts,{id:'P'+Date.now(),cat:f.cat,title:f.title.trim(),by:me.name,date:new Date().toISOString().slice(0,10),body:f.body.trim()}]});
+    commit({...db,posts:[...db.posts,{id:uuid(),cat:f.cat,title:f.title.trim(),by:me.name,authorId:me.id,date:new Date().toISOString().slice(0,10),body:f.body.trim()}]});
     setF({cat:'세일즈 스크립트',title:'',body:''}); setWrite(false); flash('게시글 등록 ✓'); };
 
   if(write) return <div style={{marginTop:16}}>
