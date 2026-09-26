@@ -103,6 +103,7 @@ function seed(){
   const d = DB.load();
   if(d){ let ch=false; if(!d.customers){d.customers=demoCustomers();ch=true;} if(!d.sales){d.sales=demoSales();ch=true;}
     if(!d.recruits){d.recruits=demoRecruits();ch=true;}
+    if(!d.claims){d.claims=demoClaims();ch=true;}
     (d.users||[]).forEach(u=>{ if(u.role!=='branch'&&u.goalApe==null){u.goalApe=300;ch=true;}
       if(!u.grade){u.grade=u.role==='branch'?'PLAT':u.role==='team'?'GOLD':'FC';ch=true;} });
     if(ch)DB.save(d); return d; } // 마이그레이션
@@ -114,7 +115,7 @@ function seed(){
     {id:'u3', name:'박설계', phone:'01033330000', pw:'1234', role:'agent',  branchId:'b1', teamId:'t1', recruiterId:'u2', code:null, goalApe:300, grade:'SFC', consent:c(), createdAt:Date.now()},
     {id:'u4', name:'최설계', phone:'01044440000', pw:'1234', role:'agent',  branchId:'b1', teamId:'t1', recruiterId:'u2', code:null, goalApe:200, grade:'FC', consent:c(), createdAt:Date.now()},
   ];
-  const db = {branches:[branch], teams:[team], users, customers:demoCustomers(), sales:demoSales(), recruits:demoRecruits(), session:null};
+  const db = {branches:[branch], teams:[team], users, customers:demoCustomers(), sales:demoSales(), recruits:demoRecruits(), claims:demoClaims(), session:null};
   DB.save(db); return db;
 }
 function c(){ return {tos:true,privacy:true,marketing:false,at:Date.now()} }
@@ -202,6 +203,17 @@ function demoRecruits(){
     {id:'r4',ownerId:'u2',branchId:'b1',teamId:'t1',name:'신입교',phone:'01050000004',stage:'교육',source:'지인소개',addedAt:soon(-30),weekAct:[3,2,1]},
     {id:'r5',ownerId:'u2',branchId:'b1',teamId:'t1',name:'정착민',phone:'01050000005',stage:'정착',source:'채용공고',addedAt:soon(-90)},
     {id:'r6',ownerId:'u2',branchId:'b1',teamId:'t1',name:'한가망',phone:'01050000006',stage:'가망',source:'DB',addedAt:soon(-1)},
+  ];
+}
+
+/* ───────── 실손청구(claims) 데모 ───────── */
+const CLAIM_STATUS=['서류준비','접수','심사중','지급완료'];
+function demoClaims(){
+  return [
+    {id:'cl1',customerId:'c4',ownerId:'u3',type:'수술',hospital:'서울정형외과',admitDate:soon(-4),dischargeDate:soon(1),amount:120,
+      docs:{진단서:true,진료비내역:true,영수증:false},status:'서류준비'},
+    {id:'cl2',customerId:'c1',ownerId:'u3',type:'통원',hospital:'강남내과',admitDate:soon(-10),dischargeDate:soon(-10),amount:35,
+      docs:{입퇴원확인서:true,진료비내역:true,영수증:true},status:'접수'},
   ];
 }
 
@@ -470,12 +482,15 @@ function Home({db,me,logout,flash,commit}){
 
       {tab==='promotion' && <Promotion db={db} me={me} scopeUsers={scopeUsers}/>}
 
+      {tab==='claims' && <Claims db={db} me={me} scopeUsers={scopeUsers} commit={commit} flash={flash}/>}
+
       {tab==='org' && <OrgView db={db} me={me} commit={commit} flash={flash}/>}
 
       {tab==='community' && <Community/>}
 
       {tab==='more' && <div style={{marginTop:16}}>
         <div className="card" style={{padding:'2px 16px'}}>
+          <div className="listrow" onClick={()=>setTab('claims')}><div style={{flex:1,fontWeight:700}}>🏥 병원 · 실손청구</div><span style={{color:'var(--blue)',fontWeight:800}}>›</span></div>
           <div className="listrow" onClick={()=>setTab('promotion')}><div style={{flex:1,fontWeight:700}}>🏅 승급 · 직급</div><span style={{color:'var(--blue)',fontWeight:800}}>›</span></div>
           <div className="listrow" onClick={()=>setTab('community')}><div style={{flex:1,fontWeight:700}}>📚 커뮤니티 · 자료실</div><span style={{color:'var(--blue)',fontWeight:800}}>›</span></div>
           <div className="listrow" style={{borderBottom:'none'}}><div style={{flex:1,fontWeight:700}}>내 추천인 코드</div><b>{me.code||'—'}</b></div>
@@ -700,6 +715,49 @@ function Members({db,me}){
     </div>}
   </div>;
 }
+/* ───────── 병원 · 실손청구 관리 ───────── */
+function Claims({db,me,scopeUsers,commit,flash}){
+  const claims=db.claims.filter(cl=>scopeUsers.some(u=>u.id===cl.ownerId));
+  const custName=(id)=>(db.customers.find(c=>c.id===id)||{}).name||'-';
+  const reqDocs=(amt)=> amt>=50?['진단서','진료비내역','영수증']:['입퇴원확인서','진료비내역','영수증'];
+  const docLabel={진단서:'진단서',입퇴원확인서:'입퇴원확인서',진료비내역:'진료비 세부내역서',영수증:'진료비 영수증'};
+  const toggleDoc=(cl,d)=> commit({...db,claims:db.claims.map(x=>x.id===cl.id?{...x,docs:{...x.docs,[d]:!x.docs[d]}}:x)});
+  const advance=(cl)=>{ const i=CLAIM_STATUS.indexOf(cl.status); if(i>=CLAIM_STATUS.length-1)return;
+    commit({...db,claims:db.claims.map(x=>x.id===cl.id?{...x,status:CLAIM_STATUS[i+1]}:x)}); flash(custName(cl.customerId)+' → '+CLAIM_STATUS[i+1]); };
+
+  return <div style={{marginTop:16}}>
+    <div style={{fontWeight:900,fontSize:17}}>🏥 병원 · 실손청구</div>
+    <div className="muted" style={{fontSize:12,margin:'4px 0 12px'}}>입원·수술 고객의 청구를 도와 유지율·신뢰·소개를 높입니다.</div>
+    {claims.length===0 && <div className="card"><div className="muted">진행 중인 청구 건이 없습니다.</div></div>}
+    {claims.map(cl=>{
+      const req=reqDocs(cl.amount); const missing=req.filter(d=>!cl.docs[d]);
+      const dd=ddayAbs(cl.dischargeDate); const si=CLAIM_STATUS.indexOf(cl.status);
+      return <div key={cl.id} className="card" style={{marginBottom:12}}>
+        <div className="row" style={{justifyContent:'space-between'}}>
+          <div><b>{custName(cl.customerId)}</b> <span className="chip tag-agent" style={{fontSize:10}}>{cl.type}</span></div>
+          <span className="chip" style={{background:si===3?'#12A1501A':'#1F5BFF1A',color:si===3?'#12A150':'#1F5BFF',fontSize:10.5}}>{cl.status}</span></div>
+        <div className="muted" style={{fontSize:11.5,marginTop:4}}>{cl.hospital} · 입원 {cl.admitDate} · 퇴원 {cl.dischargeDate}{dd!==null&&dd>=0&&si<3?` (D-${dd})`:''} · 청구 {won(cl.amount)}</div>
+
+        <div className="row" style={{gap:4,margin:'12px 0'}}>
+          {CLAIM_STATUS.map((s,i)=><div key={s} style={{flex:1,textAlign:'center'}}>
+            <div style={{height:5,borderRadius:3,background:i<=si?'#1F5BFF':'#E4EAF3'}}/>
+            <div style={{fontSize:9.5,marginTop:3,color:i<=si?'var(--blue)':'var(--sub)',fontWeight:i===si?800:600}}>{s}</div></div>)}
+        </div>
+
+        <div style={{background:'#F5F8FF',borderRadius:12,padding:12}}>
+          <div style={{fontWeight:800,fontSize:12.5,marginBottom:6}}>📋 필요서류 {cl.amount>=50?'(50만원↑ · 진단서 필수)':'(50만원↓ · 입퇴원확인서로 대체 가능)'}</div>
+          {req.map(d=><div key={d} className="row" onClick={()=>toggleDoc(cl,d)} style={{padding:'5px 0'}}>
+            <div style={{width:20,height:20,borderRadius:6,border:'2px solid '+(cl.docs[d]?'#12A150':'#CBD5E8'),background:cl.docs[d]?'#12A150':'#fff',color:'#fff',display:'flex',alignItems:'center',justifyContent:'center',fontSize:12,flex:'none'}}>{cl.docs[d]?'✓':''}</div>
+            <div style={{fontSize:13,marginLeft:8,color:cl.docs[d]?'var(--ink)':'var(--sub)'}}>{docLabel[d]}</div></div>)}
+          {missing.length>0 && <div style={{fontSize:11,color:'#C97A00',marginTop:6,fontWeight:700}}>미비 {missing.length}건 — 고객에게 안내하세요</div>}
+        </div>
+        {cl.status!=='지급완료' && <button className="btn" style={{height:44,marginTop:10}} disabled={si===0&&missing.length>0} onClick={()=>advance(cl)}>{si===0?(missing.length>0?'서류 미비':'접수하기'):'다음 단계 →'}</button>}
+      </div>;
+    })}
+    <div className="muted" style={{textAlign:'center',fontSize:11,marginTop:8}}>ⓘ 서류안내·상태는 데모 · 실제 청구접수 연동은 백엔드 후</div>
+  </div>;
+}
+
 /* ───────── 승급/직급 관리 ───────── */
 function Promotion({db,me,scopeUsers}){
   const m=userMetrics(db,me);
