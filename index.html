@@ -345,10 +345,16 @@ function App(){
     const s=seed(); if(alive){ setDb({...s,mode:'demo',session:null}); setRoute('landing'); }  // 데모는 세션 복원 안 함
   })(); return ()=>{alive=false}; },[]);
 
-  // 📩 공개 지원 접수 → 팀장 코드가 있으면 그 팀 리쿠르팅 '가망'으로, 없으면 Supabase applications 테이블에 저장(있으면)
+  // 📩 공개 지원 접수 → Supabase applications 저장. 비로그인 방문자는 익명 인증으로 임시 토큰 받아 insert(anon 직접 insert는 프로젝트 정책상 차단됨).
   const submitApplication = async(app)=>{
-    // 코드로 소속 팀 찾기(선택). 실제 백엔드면 applications에 insert.
-    try{ await SB.from('applications').insert({name:app.name,phone:app.phone,region:app.region,motive:app.motive,ref_code:app.ref||null,created_at:new Date().toISOString()}); }catch(e){}
+    try{
+      const {data:sess}=await SB.auth.getSession();
+      let anon=false;
+      if(!(sess && sess.session)){ const {error}=await SB.auth.signInAnonymously(); if(!error) anon=true; }
+      const {error}=await SB.from('applications').insert({name:app.name,phone:app.phone,region:app.region,motive:app.motive,ref_code:app.ref||null});
+      if(anon) await SB.auth.signOut();  // 임시 익명세션 정리(현재 사용자 세션엔 영향 없음)
+      if(error) return {ok:false,error:error.message};
+    }catch(e){ return {ok:false,error:String(e)}; }
     return {ok:true};
   };
 
