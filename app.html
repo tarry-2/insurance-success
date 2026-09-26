@@ -84,10 +84,24 @@ const DB = {
 const HQ_CODE = 'HQ2026';                 // 본사 관리자 코드(지점장 가입용)
 const rid = (p)=> p+'-'+Math.random().toString(36).slice(2,6).toUpperCase();
 
+const soon=(days)=>{const t=new Date();t.setDate(t.getDate()+days);return `${t.getFullYear()}-${String(t.getMonth()+1).padStart(2,'0')}-${String(t.getDate()).padStart(2,'0')}`};
+function demoCustomers(){
+  return [
+    {id:'c1',ownerId:'u3',name:'김영희',job:'자영업 (카페)',income:450,birthday:soon(2),anniversary:'',childbirth:'',surgery:'',discharge:'',lastContact:'2026-08-10',memo:'',
+      contracts:[{product:'암보험',monthly:12,status:'정상',unpaid:0,maturity:''}]},
+    {id:'c2',ownerId:'u3',name:'박준호',job:'회사원 (IT)',income:520,birthday:'1986-12-03',anniversary:soon(5),childbirth:'',surgery:'',discharge:'',lastContact:'2026-09-20',memo:'',
+      contracts:[{product:'종신보험',monthly:18,status:'미납',unpaid:2,maturity:''}]},
+    {id:'c3',ownerId:'u3',name:'이수진',job:'주부',income:0,birthday:'1990-05-14',anniversary:'',childbirth:soon(20),surgery:'',discharge:'',lastContact:'2026-09-01',memo:'출산 예정 — 어린이보험',
+      contracts:[{product:'실손보험',monthly:5,status:'정상',unpaid:0,maturity:soon(12)}]},
+    {id:'c4',ownerId:'u3',name:'정민철',job:'자영업 (식당)',income:600,birthday:'1975-02-20',anniversary:'',childbirth:'',surgery:soon(-3),discharge:soon(1),lastContact:'2026-09-18',memo:'무릎 수술 입원중',
+      contracts:[{product:'실손보험',monthly:6,status:'정상',unpaid:0,maturity:''}]},
+    {id:'c5',ownerId:'u4',name:'한지민',job:'프리랜서',income:380,birthday:soon(1),anniversary:'',childbirth:'',surgery:'',discharge:'',lastContact:'2026-07-30',memo:'',
+      contracts:[{product:'건강보험',monthly:9,status:'정상',unpaid:0,maturity:''}]},
+  ];
+}
 function seed(){
   const d = DB.load();
-  if(d) return d;
-  // 데모 조직: 강남지점 / 1팀 / 설계사 1명
+  if(d){ if(!d.customers){ d.customers=demoCustomers(); DB.save(d); } return d; } // 마이그레이션
   const branch = {id:'b1', name:'강남지점', code:'GN-1A2B', managerId:'u1'};
   const team   = {id:'t1', branchId:'b1', name:'1팀', code:'TM-3C4D', leaderId:'u2'};
   const users = [
@@ -96,10 +110,50 @@ function seed(){
     {id:'u3', name:'박설계', phone:'01033330000', pw:'1234', role:'agent',  branchId:'b1', teamId:'t1', recruiterId:'u2', code:null, consent:c(), createdAt:Date.now()},
     {id:'u4', name:'최설계', phone:'01044440000', pw:'1234', role:'agent',  branchId:'b1', teamId:'t1', recruiterId:'u2', code:null, consent:c(), createdAt:Date.now()},
   ];
-  const db = {branches:[branch], teams:[team], users, session:null};
+  const db = {branches:[branch], teams:[team], users, customers:demoCustomers(), session:null};
   DB.save(db); return db;
 }
 function c(){ return {tos:true,privacy:true,marketing:false,at:Date.now()} }
+
+/* ───────── D-day / 오늘의 할일 엔진 ───────── */
+function ddayAnnual(mmdd){ // 'YYYY-MM-DD' → 올해 기준 남은 일수(생일·기념일 반복)
+  if(!mmdd) return null; const t=new Date(); t.setHours(0,0,0,0);
+  const p=mmdd.split('-'); let d=new Date(t.getFullYear(),+p[1]-1,+p[2]);
+  if(d<t) d=new Date(t.getFullYear()+1,+p[1]-1,+p[2]);
+  return Math.round((d-t)/864e5);
+}
+function ddayAbs(date){ // 절대일자까지 남은 일수(+미래 / -과거)
+  if(!date) return null; const t=new Date(); t.setHours(0,0,0,0);
+  const p=date.split('-'); const d=new Date(+p[0],+p[1]-1,+p[2]);
+  return Math.round((d-t)/864e5);
+}
+function daysSince(date){ if(!date) return null; return -ddayAbs(date); }
+const ddLabel=(n)=> n===0?'D-DAY':(n>0?'D-'+n:'D+'+(-n));
+
+// 고객 리스트 → 할일 아이템(우선순위순)
+function buildTodos(customers){
+  const items=[];
+  for(const c of customers){
+    for(const ct of (c.contracts||[])){
+      if(ct.status==='미납'||ct.unpaid>=1){
+        const crit=ct.unpaid>=2;
+        items.push({p:crit?0:1,type:'미납',icon:'⚠️',color:crit?'#E23B4E':'#C97A00',cust:c,
+          text:`${ct.product} ${ct.unpaid}개월 미납${crit?' · 실효 위험!':''}`,dd:crit?0:1});
+      }
+      const m=ddayAbs(ct.maturity);
+      if(m!==null && m>=0 && m<=30) items.push({p:2,type:'만기/갱신',icon:'🔁',color:'#1F5BFF',cust:c,text:`${ct.product} 만기·갱신`,dd:m});
+    }
+    const sg=daysSince(c.surgery), dc=ddayAbs(c.discharge);
+    if(c.surgery && sg!==null && sg>=0 && sg<=14) items.push({p:1,type:'병원',icon:'🏥',color:'#7A5BFF',cust:c,text:`수술 후 케어 · 실손청구 안내`,dd:dc!==null?dc:0});
+    else if(dc!==null && dc>=0 && dc<=7) items.push({p:1,type:'병원',icon:'🏥',color:'#7A5BFF',cust:c,text:`퇴원 예정 · 청구 서류 팔로업`,dd:dc});
+    const bd=ddayAnnual(c.birthday); if(bd!==null && bd<=7) items.push({p:2,type:'생일',icon:'🎂',color:'#12A150',cust:c,text:`생일 축하 연락`,dd:bd});
+    const an=ddayAnnual(c.anniversary); if(an!==null && an<=7) items.push({p:2,type:'결혼기념일',icon:'💍',color:'#12A150',cust:c,text:`결혼기념일 축하`,dd:an});
+    const cb=ddayAbs(c.childbirth); if(c.childbirth && cb!==null && cb>=-14 && cb<=30) items.push({p:1,type:'출산',icon:'👶',color:'#E86AA6',cust:c,text:`출산 축하 · 어린이보험 제안`,dd:cb});
+    const lc=daysSince(c.lastContact); if(lc!==null && lc>=45 && !c.surgery) items.push({p:3,type:'안부',icon:'📞',color:'#5B6781',cust:c,text:`${lc}일째 미접촉 · 안부 연락`,dd:0});
+  }
+  return items.sort((a,b)=> a.p-b.p || a.dd-b.dd);
+}
+const won=(n)=> n>=10000?(n/10000).toFixed(n%10000?1:0)+'억':n+'만';
 
 const ROLE = {
   branch:{label:'지점장', chip:'tag-branch', ic:'🏢', d:'팀·설계사 전체 관리'},
@@ -126,7 +180,7 @@ function App(){
   else if(route==='signup') view=<Signup db={db} commit={commit} go={go} login={login} flash={flash}/>;
   else if(route==='terms') view=<Legal kind="terms" go={go}/>;
   else if(route==='privacy') view=<Legal kind="privacy" go={go}/>;
-  else if(route==='home' && me) view=<Home db={db} me={me} logout={logout} flash={flash}/>;
+  else if(route==='home' && me) view=<Home db={db} me={me} logout={logout} flash={flash} commit={commit}/>;
   else view=<Landing go={go}/>;
 
   return <div className="app">{view}{toast&&<div className="toast">{toast}</div>}</div>;
@@ -287,8 +341,10 @@ function Legal({kind,go}){
 }
 
 /* ───────── 홈 (역할별 스코프) ───────── */
-function Home({db,me,logout,flash}){
+function Home({db,me,logout,flash,commit}){
   const [tab,setTab]=useState('home');
+  const [openCust,setOpenCust]=useState(null); // 고객 상세 id
+  const [addCust,setAddCust]=useState(false);
   const branch=db.branches.find(b=>b.id===me.branchId);
   const team=db.teams.find(t=>t.id===me.teamId);
 
@@ -299,6 +355,18 @@ function Home({db,me,logout,flash}){
     return u.branchId===me.branchId; // branch
   });
   const agents = scopeUsers.filter(u=>u.role==='agent');
+  const myCustomers = db.customers.filter(c=>scopeUsers.some(u=>u.id===c.ownerId));
+  const todos = buildTodos(myCustomers);
+
+  // 고객 저장/수정/액션
+  const saveCustomer=(cst)=>{ const nd={...db,customers:[...db.customers]};
+    const i=nd.customers.findIndex(x=>x.id===cst.id);
+    if(i>=0) nd.customers[i]=cst; else nd.customers.push({...cst,id:'C'+Date.now(),ownerId:me.id});
+    commit(nd); };
+  const markContact=(cid)=>{ const nd={...db,customers:db.customers.map(c=>c.id===cid?{...c,lastContact:new Date().toISOString().slice(0,10)}:c)}; commit(nd); flash('연락 완료로 기록했어요 ✓'); };
+
+  if(addCust) return <CustomerForm me={me} onSave={(c)=>{saveCustomer(c);setAddCust(false);flash('고객 등록 완료 ✓');}} onCancel={()=>setAddCust(false)}/>;
+  if(openCust){ const c=db.customers.find(x=>x.id===openCust); if(c) return <CustomerDetail c={c} onBack={()=>setOpenCust(null)} onContact={()=>markContact(c.id)} onSave={(nc)=>{saveCustomer(nc);flash('저장됨 ✓');}}/>; }
 
   return <div className="scroll" style={{paddingBottom:0,minHeight:'100dvh',display:'flex',flexDirection:'column'}}>
     <div className="pad" style={{flex:1,overflowY:'auto'}}>
@@ -308,26 +376,45 @@ function Home({db,me,logout,flash}){
         <button className="back" onClick={logout} title="로그아웃">⏻</button>
       </div>
 
-      {tab==='home' && <>
+      {tab==='home' && (()=>{
+        const allC=myCustomers.flatMap(c=>c.contracts||[]);
+        const ret=allC.length?Math.round(allC.filter(x=>x.status==='정상').length/allC.length*100):100;
+        return <>
         <div className="row" style={{gap:10,marginTop:16}}>
           {me.role==='agent'
-            ? <><div className="stat"><div className="v">3</div><div className="l">오늘 연락</div></div>
-                <div className="stat"><div className="v">92%</div><div className="l">내 유지율</div></div>
-                <div className="stat"><div className="v">4건</div><div className="l">이번달 계약</div></div></>
+            ? <><div className="stat"><div className="v">{todos.length}</div><div className="l">오늘 할 일</div></div>
+                <div className="stat"><div className="v" style={{color:ret<80?'#E23B4E':'inherit'}}>{ret}%</div><div className="l">내 유지율</div></div>
+                <div className="stat"><div className="v">{myCustomers.length}</div><div className="l">관리 고객</div></div></>
             : <><div className="stat"><div className="v">{agents.length}</div><div className="l">{me.role==='branch'?'지점 설계사':'팀원'}</div></div>
-                <div className="stat"><div className="v">{me.role==='branch'?db.teams.filter(t=>t.branchId===me.branchId).length:1}</div><div className="l">팀 수</div></div>
-                <div className="stat"><div className="v">88%</div><div className="l">평균 유지율</div></div></>}
+                <div className="stat"><div className="v">{myCustomers.length}</div><div className="l">지점 고객</div></div>
+                <div className="stat"><div className="v" style={{color:ret<80?'#E23B4E':'inherit'}}>{ret}%</div><div className="l">평균 유지율</div></div></>}
         </div>
-        <div className="card" style={{marginTop:14}}>
-          <div style={{fontWeight:800,marginBottom:6}}>💡 오늘의 할 일 (엔진)</div>
-          <div className="muted">미납 경보 · 기념일 접점 · 청구 팔로업 · 신인 활동체크 — 이 큐가 유지율/정착률을 올립니다. <b>(다음 단계에서 실데이터 연결)</b></div>
+
+        <div className="row" style={{justifyContent:'space-between',margin:'18px 0 8px'}}>
+          <div style={{fontWeight:900,fontSize:16}}>💡 오늘의 할 일 <span style={{color:'var(--blue)'}}>{todos.length}</span></div>
+          {me.role==='agent'&&<button className="chip tag-branch" onClick={()=>setAddCust(true)}>＋ 고객</button>}
         </div>
-        {me.role!=='agent' && <div className="codebox" style={{marginTop:14}}>
+        {todos.length===0
+          ? <div className="card"><div className="muted">오늘 급한 할 일이 없어요. 고객을 등록하면 생일·기념일·미납·만기·병원 케어가 자동으로 잡혀요.</div></div>
+          : <div className="card" style={{padding:'2px 14px'}}>
+              {todos.slice(0,12).map((it,i)=><div key={i} className="listrow" onClick={()=>setOpenCust(it.cust.id)}>
+                <div style={{width:34,height:34,borderRadius:10,background:it.color+'1A',display:'flex',alignItems:'center',justifyContent:'center',fontSize:16,flex:'none'}}>{it.icon}</div>
+                <div style={{flex:1}}>
+                  <div style={{fontWeight:700,fontSize:13.5}}>{it.cust.name} <span style={{color:'var(--sub)',fontWeight:600}}>· {it.text}</span></div>
+                  <div style={{fontSize:11}}><span style={{color:it.color,fontWeight:800}}>{it.type}</span></div>
+                </div>
+                <div style={{fontSize:11,fontWeight:900,color:it.color}}>{ddLabel(it.dd)}</div>
+              </div>)}
+            </div>}
+
+        {me.role!=='agent' && <div className="codebox" style={{marginTop:16}}>
           <div style={{fontSize:12,opacity:.8}}>내 추천인 코드 (하위 초대용)</div>
           <div className="c">{me.code||'-'}</div>
           <div style={{fontSize:11,opacity:.7,marginTop:4}}>{me.role==='branch'?'팀장':'설계사'}가 이 코드로 가입하면 자동 소속됩니다</div>
         </div>}
-      </>}
+      </>;})()}
+
+      {tab==='customers' && <CustomerList customers={myCustomers} me={me} onOpen={setOpenCust} onAdd={()=>setAddCust(true)}/>}
 
       {tab==='org' && <OrgView db={db} me={me}/>}
 
@@ -343,9 +430,110 @@ function Home({db,me,logout,flash}){
 
     <div className="nav">
       <button className={tab==='home'?'on':''} onClick={()=>setTab('home')}><span className="ic">🏠</span>홈</button>
+      <button className={tab==='customers'?'on':''} onClick={()=>setTab('customers')}><span className="ic">🧑‍🤝‍🧑</span>고객</button>
       {me.role!=='agent' && <button className={tab==='org'?'on':''} onClick={()=>setTab('org')}><span className="ic">👥</span>{me.role==='branch'?'조직관리':'팀관리'}</button>}
       <button className={tab==='community'?'on':''} onClick={()=>setTab('community')}><span className="ic">📚</span>커뮤니티</button>
       <button className={tab==='more'?'on':''} onClick={()=>setTab('more')}><span className="ic">⋯</span>더보기</button>
+    </div>
+  </div>;
+}
+
+/* ───────── 고객 리스트 ───────── */
+function CustomerList({customers,me,onOpen,onAdd}){
+  const [q,setQ]=useState('');
+  const list=customers.filter(c=>!q||c.name.includes(q)||(c.job||'').includes(q));
+  const badge=(c)=>{ if((c.contracts||[]).some(x=>x.unpaid>=2))return{t:'실효위험',col:'#E23B4E'};
+    if((c.contracts||[]).some(x=>x.unpaid>=1))return{t:'미납',col:'#C97A00'};
+    if(c.surgery&&daysSince(c.surgery)>=0&&daysSince(c.surgery)<=14)return{t:'병원케어',col:'#7A5BFF'};
+    const bd=ddayAnnual(c.birthday); if(bd!==null&&bd<=7)return{t:'생일 D-'+bd,col:'#12A150'};
+    return null; };
+  return <div style={{marginTop:16}}>
+    <div className="row" style={{justifyContent:'space-between',marginBottom:12}}>
+      <div style={{fontWeight:900,fontSize:17}}>🧑‍🤝‍🧑 고객관리 <span style={{color:'var(--blue)'}}>{customers.length}</span></div>
+      {me.role==='agent'&&<button className="chip tag-branch" onClick={onAdd}>＋ 고객 등록</button>}
+    </div>
+    <div className="field"><input value={q} onChange={e=>setQ(e.target.value)} placeholder="이름·직업 검색"/></div>
+    <div className="card" style={{padding:'2px 14px'}}>
+      {list.length?list.map(c=>{const b=badge(c);return <div key={c.id} className="listrow" onClick={()=>onOpen(c.id)}>
+        <div className="ava">{c.name[0]}</div>
+        <div style={{flex:1}}><div style={{fontWeight:700,fontSize:14}}>{c.name} <span className="muted" style={{fontSize:11.5}}>{c.job}</span></div>
+          <div className="muted" style={{fontSize:11.5}}>{(c.contracts||[]).map(x=>x.product).join(', ')||'계약 없음'}</div></div>
+        {b&&<span className="chip" style={{background:b.col+'1A',color:b.col,fontSize:10}}>{b.t}</span>}
+        <div style={{color:'var(--blue)',fontWeight:800}}>›</div>
+      </div>;}):<div className="muted" style={{padding:'14px 0'}}>고객이 없습니다.</div>}
+    </div>
+    {me.role!=='agent'&&<div className="muted" style={{textAlign:'center',fontSize:11,marginTop:10}}>ⓘ {me.role==='branch'?'지점':'팀'} 소속 설계사의 고객을 조회합니다</div>}
+  </div>;
+}
+
+/* ───────── 고객 등록/수정 폼 ───────── */
+function CustomerForm({me,cust,onSave,onCancel}){
+  const init=cust||{name:'',job:'',income:'',birthday:'',anniversary:'',childbirth:'',surgery:'',discharge:'',lastContact:new Date().toISOString().slice(0,10),memo:'',contracts:[{product:'',monthly:'',status:'정상',unpaid:0,maturity:''}]};
+  const [f,setF]=useState(init); const [err,setErr]=useState('');
+  const s=(k,v)=>setF({...f,[k]:v});
+  const sc=(k,v)=>{const cs=[...(f.contracts||[{}])];cs[0]={...cs[0],[k]:v};setF({...f,contracts:cs})};
+  const ct=(f.contracts&&f.contracts[0])||{};
+  const submit=()=>{ if(!f.name)return setErr('이름을 입력하세요');
+    onSave({...f,income:+f.income||0,contracts:(f.contracts||[]).filter(x=>x.product).map(x=>({...x,monthly:+x.monthly||0,unpaid:+x.unpaid||0}))}); };
+  const F=(label,k,ph,type)=><div className="field"><label>{label}</label><input type={type||'text'} value={f[k]||''} onChange={e=>s(k,e.target.value)} placeholder={ph}/></div>;
+  return <div className="scroll">
+    <div className="top"><button className="back" onClick={onCancel}>‹</button><div style={{fontWeight:800}}>{cust?'고객 수정':'고객 등록'}</div></div>
+    <div className="pad" style={{paddingTop:4}}>
+      {F('이름 *','name','홍길동')}
+      {F('하는 일 (직업)','job','자영업 (카페 운영)')}
+      {F('월 수입 (만원)','income','450','number')}
+      <div className="row" style={{gap:10}}><div style={{flex:1}}>{F('생일','birthday','','date')}</div><div style={{flex:1}}>{F('결혼기념일','anniversary','','date')}</div></div>
+      {F('출산(예정)일','childbirth','','date')}
+      <div className="row" style={{gap:10}}><div style={{flex:1}}>{F('수술일','surgery','','date')}</div><div style={{flex:1}}>{F('퇴원일','discharge','','date')}</div></div>
+      {F('마지막 연락일','lastContact','','date')}
+      <div className="card" style={{margin:'4px 0 14px'}}>
+        <div style={{fontWeight:800,marginBottom:10}}>계약 정보</div>
+        <div className="field" style={{marginBottom:10}}><label>상품</label><input value={ct.product||''} onChange={e=>sc('product',e.target.value)} placeholder="암보험 · 실손보험"/></div>
+        <div className="row" style={{gap:10}}>
+          <div style={{flex:1}} className="field"><label>월납(만원)</label><input type="number" value={ct.monthly||''} onChange={e=>sc('monthly',e.target.value)}/></div>
+          <div style={{flex:1}} className="field"><label>상태</label><select value={ct.status||'정상'} onChange={e=>sc('status',e.target.value)}><option>정상</option><option>미납</option><option>실효</option></select></div>
+        </div>
+        <div className="row" style={{gap:10}}>
+          <div className="field" style={{flex:1,marginBottom:0}}><label>미납 개월</label><input type="number" value={ct.unpaid||0} onChange={e=>sc('unpaid',e.target.value)}/></div>
+          <div className="field" style={{flex:1,marginBottom:0}}><label>만기/갱신일</label><input type="date" value={ct.maturity||''} onChange={e=>sc('maturity',e.target.value)}/></div>
+        </div>
+      </div>
+      <div className="field"><label>메모</label><input value={f.memo||''} onChange={e=>s('memo',e.target.value)} placeholder="특이사항"/></div>
+      {err&&<div className="err" style={{marginBottom:10}}>{err}</div>}
+      <button className="btn blue" onClick={submit}>{cust?'저장':'등록'}</button>
+    </div>
+  </div>;
+}
+
+/* ───────── 고객 상세 ───────── */
+function CustomerDetail({c,onBack,onContact,onSave}){
+  const [edit,setEdit]=useState(false);
+  if(edit) return <CustomerForm cust={c} onSave={(nc)=>{onSave(nc);setEdit(false);}} onCancel={()=>setEdit(false)}/>;
+  const dchips=[];
+  const bd=ddayAnnual(c.birthday); if(bd!==null)dchips.push(['🎂 생일',ddLabel(bd),'#12A150']);
+  const an=ddayAnnual(c.anniversary); if(an!==null)dchips.push(['💍 결혼기념일',ddLabel(an),'#12A150']);
+  const cb=ddayAbs(c.childbirth); if(cb!==null)dchips.push(['👶 출산',ddLabel(cb),'#E86AA6']);
+  const dc=ddayAbs(c.discharge); if(dc!==null)dchips.push(['🏥 퇴원',ddLabel(dc),'#7A5BFF']);
+  return <div className="scroll">
+    <div className="top"><button className="back" onClick={onBack}>‹</button><div style={{fontWeight:800,flex:1}}>고객 상세</div>
+      <button className="chip tag-branch" onClick={()=>setEdit(true)}>수정</button></div>
+    <div className="pad" style={{paddingTop:4}}>
+      <div className="row"><div className="ava" style={{width:52,height:52,fontSize:20}}>{c.name[0]}</div>
+        <div><div style={{fontWeight:900,fontSize:19}}>{c.name}</div><div className="muted">{c.job} {c.income?'· 월 '+won(c.income):''}</div></div></div>
+      {dchips.length>0 && <div style={{display:'flex',flexWrap:'wrap',gap:8,marginTop:16}}>
+        {dchips.map((d,i)=><div key={i} className="chip" style={{background:d[2]+'1A',color:d[2],fontSize:12,padding:'7px 12px'}}>{d[0]} {d[1]}</div>)}</div>}
+      {c.surgery && <div className="card" style={{marginTop:14,borderLeft:'4px solid #7A5BFF'}}>
+        <div style={{fontWeight:800}}>🏥 병원 케어 · 실손 청구 안내</div>
+        <div className="muted" style={{fontSize:12.5,marginTop:4}}>수술일 {c.surgery}{c.discharge?' · 퇴원 '+c.discharge:''}. 필요서류: 진단서(50만원↓ 입퇴원확인서)·진료비 세부내역서·영수증.</div></div>}
+      <div style={{fontWeight:800,margin:'18px 0 8px'}}>계약</div>
+      {(c.contracts||[]).map((x,i)=><div key={i} className="card" style={{marginBottom:8}}>
+        <div className="row" style={{justifyContent:'space-between'}}><b>{x.product}</b>
+          <span className="chip" style={{background:x.unpaid>=1?'#E23B4E1A':'#12A1501A',color:x.unpaid>=1?'#E23B4E':'#12A150',fontSize:11}}>{x.unpaid>=1?x.unpaid+'개월 미납':'정상'}</span></div>
+        <div className="muted" style={{fontSize:12,marginTop:4}}>월납 {x.monthly}만원{x.maturity?' · 만기/갱신 '+x.maturity:''}</div></div>)}
+      {c.memo&&<div className="card" style={{marginTop:8}}><div className="muted" style={{fontSize:12.5}}>📝 {c.memo}</div></div>}
+      <div style={{height:16}}/>
+      <button className="btn" onClick={onContact}>📞 연락 완료로 기록</button>
+      <div className="muted" style={{textAlign:'center',fontSize:11.5,marginTop:10}}>마지막 연락 {c.lastContact||'-'}</div>
     </div>
   </div>;
 }
