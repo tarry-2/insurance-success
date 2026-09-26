@@ -458,19 +458,34 @@ function Signup({go,signup,flash}){
     <div className="top"><button className="back" onClick={()=>step===1?go('landing'):setStep(step-1)}>‹</button>
       <div style={{fontWeight:800}}>회원가입 <span style={{color:'var(--sub)',fontWeight:600,fontSize:13}}>({step}/3)</span></div></div>
     <div className="pad" style={{paddingTop:6}}>
-    {step===1 && <>
-      <div className="h1" style={{fontSize:22,marginBottom:6}}>어떤 역할로<br/>시작하시나요?</div>
-      <div className="muted" style={{marginBottom:18}}>역할에 따라 관리 범위가 달라집니다.</div>
-      <div style={{display:'flex',flexDirection:'column',gap:10}}>
-        {['branch','team','agent'].map(r=>(
-          <div key={r} className={'rolecard'+(role===r?' on':'')} onClick={()=>setRole(r)} style={{textAlign:'left',display:'flex',alignItems:'center',gap:14}}>
-            <div className="ic">{ROLE[r].ic}</div>
-            <div><div className="t">{ROLE[r].label}</div><div className="d">{ROLE[r].d}</div></div>
-          </div>))}
+    {step===1 && (()=>{
+      const RMETA={branch:{c:'#1F5BFF',scope:'지점 전체',sub:'팀·설계사 모두 관리'},team:{c:'#12A150',scope:'우리 팀',sub:'팀원 + 본인 실적'},agent:{c:'#C97A00',scope:'본인',sub:'내 고객·실적'}};
+      return <>
+      {/* 마스코트 안내 배너 */}
+      <div style={{position:'relative',borderRadius:16,padding:'16px 88px 16px 16px',background:'linear-gradient(135deg,#0B1B3F,#1F5BFF)',color:'#fff',overflow:'hidden',marginBottom:18}}>
+        <div style={{fontSize:15,fontWeight:900}}>어떤 역할로 시작하시나요?</div>
+        <div style={{fontSize:12,opacity:.88,marginTop:4,lineHeight:1.5}}>역할에 따라 <b>관리 범위</b>가 달라져요.<br/>지점장 › 팀장 › 설계사 순으로 넓어집니다.</div>
+        <img src="/mascot.png" alt="슈피" style={{position:'absolute',right:8,bottom:-4,width:78,height:78,objectFit:'contain'}}/>
+      </div>
+      <div style={{display:'flex',flexDirection:'column',gap:11}}>
+        {['branch','team','agent'].map(r=>{const m=RMETA[r];const on=role===r;
+          return <div key={r} onClick={()=>setRole(r)} style={{display:'flex',alignItems:'center',gap:13,padding:'15px 14px',borderRadius:16,cursor:'pointer',
+            border:'2px solid '+(on?m.c:'var(--line)'),background:on?m.c+'0D':'#fff',transition:'.15s',boxShadow:on?'0 6px 18px '+m.c+'26':'none'}}>
+            <div style={{width:46,height:46,borderRadius:13,flex:'none',display:'flex',alignItems:'center',justifyContent:'center',fontSize:23,background:on?m.c+'1A':'#F2F5FA'}}>{ROLE[r].ic}</div>
+            <div style={{flex:1}}>
+              <div style={{fontWeight:800,fontSize:15}}>{ROLE[r].label}</div>
+              <div className="muted" style={{fontSize:11.5,marginTop:2}}>{m.sub}</div>
+            </div>
+            <div style={{textAlign:'right'}}>
+              <span className="chip" style={{background:m.c+'1A',color:m.c,fontSize:10}}>{m.scope}</span>
+              <div style={{marginTop:6,width:20,height:20,borderRadius:'50%',marginLeft:'auto',display:'flex',alignItems:'center',justifyContent:'center',
+                background:on?m.c:'transparent',border:on?'none':'2px solid var(--line)',color:'#fff',fontSize:12}}>{on?'✓':''}</div>
+            </div>
+          </div>;})}
       </div>
       <div style={{height:20}}/>
       <button className="btn" onClick={()=>setStep(2)}>다음 →</button>
-    </>}
+    </>;})()}
 
     {step===2 && <>
       <div className="h1" style={{fontSize:22,marginBottom:16}}>정보를 입력하세요</div>
