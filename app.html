@@ -388,14 +388,21 @@ function Landing({go,onDev}){
         <div style={{width:6,height:18,background:'#1F5BFF',borderRadius:2}}/>
         <div style={{width:6,height:26,background:'#0B1B3F',borderRadius:2}}/>
       </div>
-      <div className="muted" style={{fontWeight:700}}>사람의 가치를 더하는<br/>보험 전문가의 성장 플랫폼</div>
-      <div className="h1" style={{fontSize:34,marginTop:16}}>인슈런스<br/><span style={{color:'var(--blue)'}}>석세스</span><br/>프로그램</div>
-      <div style={{fontSize:11,letterSpacing:4,color:'#8A94AB',marginTop:10,fontWeight:700}}>INSURANCE SUCCESS</div>
-      <div className="card" style={{marginTop:28}}>
+      {/* 히어로 이미지 */}
+      <div style={{position:'relative',borderRadius:20,overflow:'hidden',marginBottom:20,boxShadow:'0 12px 30px rgba(20,40,90,.16)'}}>
+        <img src="/hero.jpg" alt="" style={{width:'100%',height:200,objectFit:'cover',display:'block'}}/>
+        <div style={{position:'absolute',inset:0,background:'linear-gradient(180deg,rgba(11,27,63,0) 40%,rgba(11,27,63,.78))'}}/>
+        <div style={{position:'absolute',left:16,right:16,bottom:14,color:'#fff'}}>
+          <div style={{fontSize:12,opacity:.9,fontWeight:600}}>사람의 가치를 더하는 · 보험 전문가의 성장 플랫폼</div>
+          <div style={{fontSize:24,fontWeight:900,letterSpacing:-.5,marginTop:2}}>인슈런스 <span style={{color:'#7FB0FF'}}>석세스</span></div>
+        </div>
+      </div>
+      <div style={{fontSize:11,letterSpacing:4,color:'#8A94AB',fontWeight:700}}>INSURANCE SUCCESS</div>
+      <div className="card" style={{marginTop:14}}>
         <div style={{fontWeight:800,marginBottom:4}}>유지율·정착률을 올리는 영업 시스템</div>
         <div className="muted">승급·리쿠르팅·매출·고객·병원·기념일 관리까지 — 매일의 "할 일"로 성과를 만듭니다.</div>
       </div>
-      <div style={{height:24}}/>
+      <div style={{height:22}}/>
       <button className="btn blue" onClick={()=>go('signup')}>시작하기 →</button>
       <div style={{height:10}}/>
       <button className="btn ghost" onClick={()=>go('login')}>로그인</button>
