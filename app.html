@@ -82,6 +82,7 @@ const DB = {
   save(d){ localStorage.setItem('insu_db', JSON.stringify(d)) },
 };
 const HQ_CODE = 'HQ2026';                 // 본사 관리자 코드(지점장 가입용)
+const DEV_CODE = '123456';                // 🔧 개발자 페이지(왼쪽상단 그래프 7클릭) 접속 코드
 const rid = (p)=> p+'-'+Math.random().toString(36).slice(2,6).toUpperCase();
 
 const soon=(days)=>{const t=new Date();t.setDate(t.getDate()+days);return `${t.getFullYear()}-${String(t.getMonth()+1).padStart(2,'0')}-${String(t.getDate()).padStart(2,'0')}`};
@@ -266,23 +267,36 @@ function App(){
   const login = (uid)=>{ const nd={...db,session:uid}; commit(nd); go('home'); };
   const logout = ()=>{ const nd={...db,session:null}; commit(nd); go('landing'); };
 
+  // 🔧 개발자(본사 관리자) 페이지 — 왼쪽 상단 그래프 7클릭 + 코드
+  const onDev = ()=>{ const pw=window.prompt('🔧 개발자 페이지 접속 코드'); if(pw==null) return;
+    if(pw===DEV_CODE){ const hq=db.users.find(u=>u.role==='hq'); if(hq){login(hq.id);} else flash('본사 계정 없음'); }
+    else flash('코드가 올바르지 않습니다'); };
+
   let view;
-  if(route==='landing') view=<Landing go={go}/>;
+  if(route==='landing') view=<Landing go={go} onDev={onDev}/>;
   else if(route==='login') view=<Login db={db} go={go} login={login} flash={flash}/>;
   else if(route==='signup') view=<Signup db={db} commit={commit} go={go} login={login} flash={flash}/>;
   else if(route==='terms') view=<Legal kind="terms" go={go}/>;
   else if(route==='privacy') view=<Legal kind="privacy" go={go}/>;
   else if(route==='home' && me && me.role==='hq') view=<Admin db={db} me={me} logout={logout} flash={flash} commit={commit}/>;
   else if(route==='home' && me) view=<Home db={db} me={me} logout={logout} flash={flash} commit={commit}/>;
-  else view=<Landing go={go}/>;
+  else view=<Landing go={go} onDev={onDev}/>;
 
   return <div className="app">{view}{toast&&<div className="toast">{toast}</div>}</div>;
 }
 
 /* ───────── 시작 화면 ───────── */
-function Landing({go}){
+function Landing({go,onDev}){
+  const [tap,setTap]=useState(0);
+  const hitLogo=()=>{ const n=tap+1; setTap(n); if(n>=7){ setTap(0); onDev&&onDev(); } };
   return <div className="scroll" style={{background:'linear-gradient(180deg,#F7F9FD,#EAF0FA)'}}>
-    <div className="pad" style={{paddingTop:56}}>
+    <div className="pad" style={{paddingTop:40}}>
+      {/* 🔧 왼쪽 상단 그래프 로고 — 7번 클릭 시 개발자 페이지 */}
+      <div onClick={hitLogo} style={{display:'inline-flex',alignItems:'flex-end',gap:3,height:26,marginBottom:16,cursor:'pointer',userSelect:'none'}} title="Insurance Success">
+        <div style={{width:6,height:11,background:'#1F5BFF',borderRadius:2}}/>
+        <div style={{width:6,height:18,background:'#1F5BFF',borderRadius:2}}/>
+        <div style={{width:6,height:26,background:'#0B1B3F',borderRadius:2}}/>
+      </div>
       <div className="muted" style={{fontWeight:700}}>사람의 가치를 더하는<br/>보험 전문가의 성장 플랫폼</div>
       <div className="h1" style={{fontSize:34,marginTop:16}}>인슈런스<br/><span style={{color:'var(--blue)'}}>석세스</span><br/>프로그램</div>
       <div style={{fontSize:11,letterSpacing:4,color:'#8A94AB',marginTop:10,fontWeight:700}}>INSURANCE SUCCESS</div>
@@ -413,10 +427,9 @@ function Login({db,go,login,flash}){
       <button className="btn" onClick={submit}>로그인</button>
       <div style={{textAlign:'center',margin:'18px 0',color:'#9AA6BE',fontSize:12}}>— 데모 계정으로 둘러보기 —</div>
       <div className="row" style={{gap:8}}>
-        <button className="btn ghost" style={{height:44,fontSize:12.5}} onClick={()=>demo('hq')}>본사</button>
-        <button className="btn ghost" style={{height:44,fontSize:12.5}} onClick={()=>demo('branch')}>지점장</button>
-        <button className="btn ghost" style={{height:44,fontSize:12.5}} onClick={()=>demo('team')}>팀장</button>
-        <button className="btn ghost" style={{height:44,fontSize:12.5}} onClick={()=>demo('agent')}>설계사</button>
+        <button className="btn ghost" style={{height:44,fontSize:13}} onClick={()=>demo('branch')}>지점장</button>
+        <button className="btn ghost" style={{height:44,fontSize:13}} onClick={()=>demo('team')}>팀장</button>
+        <button className="btn ghost" style={{height:44,fontSize:13}} onClick={()=>demo('agent')}>설계사</button>
       </div>
       <div style={{textAlign:'center',marginTop:18,fontSize:13,color:'var(--sub)'}}>아직 계정이 없으신가요? <span className="link" onClick={()=>go('signup')}>회원가입</span></div>
     </div>
