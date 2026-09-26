@@ -101,16 +101,18 @@ function demoCustomers(){
 }
 function seed(){
   const d = DB.load();
-  if(d){ if(!d.customers){ d.customers=demoCustomers(); DB.save(d); } return d; } // 마이그레이션
+  if(d){ let ch=false; if(!d.customers){d.customers=demoCustomers();ch=true;} if(!d.sales){d.sales=demoSales();ch=true;}
+    (d.users||[]).forEach(u=>{ if(u.role!=='branch'&&u.goalApe==null){u.goalApe=300;ch=true;} });
+    if(ch)DB.save(d); return d; } // 마이그레이션
   const branch = {id:'b1', name:'강남지점', code:'GN-1A2B', managerId:'u1'};
   const team   = {id:'t1', branchId:'b1', name:'1팀', code:'TM-3C4D', leaderId:'u2'};
   const users = [
     {id:'u1', name:'김지점', phone:'01011110000', pw:'1234', role:'branch', branchId:'b1', teamId:null, recruiterId:null, code:'GN-1A2B', consent:c(), createdAt:Date.now()},
-    {id:'u2', name:'이팀장', phone:'01022220000', pw:'1234', role:'team',   branchId:'b1', teamId:'t1', recruiterId:'u1', code:'TM-3C4D', consent:c(), createdAt:Date.now()},
-    {id:'u3', name:'박설계', phone:'01033330000', pw:'1234', role:'agent',  branchId:'b1', teamId:'t1', recruiterId:'u2', code:null, consent:c(), createdAt:Date.now()},
-    {id:'u4', name:'최설계', phone:'01044440000', pw:'1234', role:'agent',  branchId:'b1', teamId:'t1', recruiterId:'u2', code:null, consent:c(), createdAt:Date.now()},
+    {id:'u2', name:'이팀장', phone:'01022220000', pw:'1234', role:'team',   branchId:'b1', teamId:'t1', recruiterId:'u1', code:'TM-3C4D', goalApe:300, consent:c(), createdAt:Date.now()},
+    {id:'u3', name:'박설계', phone:'01033330000', pw:'1234', role:'agent',  branchId:'b1', teamId:'t1', recruiterId:'u2', code:null, goalApe:300, consent:c(), createdAt:Date.now()},
+    {id:'u4', name:'최설계', phone:'01044440000', pw:'1234', role:'agent',  branchId:'b1', teamId:'t1', recruiterId:'u2', code:null, goalApe:200, consent:c(), createdAt:Date.now()},
   ];
-  const db = {branches:[branch], teams:[team], users, customers:demoCustomers(), session:null};
+  const db = {branches:[branch], teams:[team], users, customers:demoCustomers(), sales:demoSales(), session:null};
   DB.save(db); return db;
 }
 function c(){ return {tos:true,privacy:true,marketing:false,at:Date.now()} }
@@ -154,6 +156,21 @@ function buildTodos(customers){
   return items.sort((a,b)=> a.p-b.p || a.dd-b.dd);
 }
 const won=(n)=> n>=10000?(n/10000).toFixed(n%10000?1:0)+'억':n+'만';
+
+/* ───────── 실적(sales) 데모 데이터 ───────── */
+const monthKey=(o)=>{const d=new Date();d.setDate(1);d.setMonth(d.getMonth()-o);return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`};
+const mLabel=(mk)=> (+mk.split('-')[1])+'월';
+function demoSales(){
+  const prods=['암보험','종신보험','실손보험','건강보험','어린이보험'];
+  const apes=[120,80,150,60,90,110];
+  const rows=[]; let id=1;
+  const gen=(agent,perMonth)=>{ perMonth.forEach((n,idx)=>{ const o=5-idx;
+    for(let i=0;i<n;i++){ const ape=apes[(i+idx)%apes.length];
+      rows.push({id:'s'+(id++),agentId:agent,month:monthKey(o),product:prods[(i+idx)%prods.length],ape,
+        commission:Math.round(ape*0.35),commStatus:o===0?(i%2?'미수':'예상'):'수령'}); } }); };
+  gen('u3',[3,4,2,5,3,2]); gen('u4',[1,2,1,2,1,1]);
+  return rows;
+}
 
 const ROLE = {
   branch:{label:'지점장', chip:'tag-branch', ic:'🏢', d:'팀·설계사 전체 관리'},
@@ -416,12 +433,17 @@ function Home({db,me,logout,flash,commit}){
 
       {tab==='customers' && <CustomerList customers={myCustomers} me={me} onOpen={setOpenCust} onAdd={()=>setAddCust(true)}/>}
 
+      {tab==='performance' && <Performance db={db} me={me} scopeUsers={scopeUsers}/>}
+
       {tab==='org' && <OrgView db={db} me={me}/>}
 
       {tab==='community' && <Community/>}
 
       {tab==='more' && <div style={{marginTop:16}}>
-        <div className="card"><div className="listrow" style={{borderBottom:'none'}}><div style={{flex:1,fontWeight:700}}>내 추천인 코드</div><b>{me.code||'—'}</b></div></div>
+        <div className="card" style={{padding:'2px 16px'}}>
+          <div className="listrow" onClick={()=>setTab('community')}><div style={{flex:1,fontWeight:700}}>📚 커뮤니티 · 자료실</div><span style={{color:'var(--blue)',fontWeight:800}}>›</span></div>
+          <div className="listrow" style={{borderBottom:'none'}}><div style={{flex:1,fontWeight:700}}>내 추천인 코드</div><b>{me.code||'—'}</b></div>
+        </div>
         <div style={{height:12}}/>
         <button className="btn ghost" onClick={logout}>로그아웃</button>
         <div className="muted" style={{textAlign:'center',marginTop:16,fontSize:11}}>ⓘ 지금은 프론트(로컬 저장) 단계 · 백엔드(로그인·데이터)는 다음 순서</div>
@@ -431,8 +453,8 @@ function Home({db,me,logout,flash,commit}){
     <div className="nav">
       <button className={tab==='home'?'on':''} onClick={()=>setTab('home')}><span className="ic">🏠</span>홈</button>
       <button className={tab==='customers'?'on':''} onClick={()=>setTab('customers')}><span className="ic">🧑‍🤝‍🧑</span>고객</button>
-      {me.role!=='agent' && <button className={tab==='org'?'on':''} onClick={()=>setTab('org')}><span className="ic">👥</span>{me.role==='branch'?'조직관리':'팀관리'}</button>}
-      <button className={tab==='community'?'on':''} onClick={()=>setTab('community')}><span className="ic">📚</span>커뮤니티</button>
+      <button className={tab==='performance'?'on':''} onClick={()=>setTab('performance')}><span className="ic">📈</span>실적</button>
+      {me.role!=='agent' && <button className={tab==='org'?'on':''} onClick={()=>setTab('org')}><span className="ic">👥</span>{me.role==='branch'?'조직':'팀'}</button>}
       <button className={tab==='more'?'on':''} onClick={()=>setTab('more')}><span className="ic">⋯</span>더보기</button>
     </div>
   </div>;
@@ -567,6 +589,92 @@ function OrgView({db,me}){
     </div>}
   </div>;
 }
+/* ───────── 매출/업적 (역할별 집계) ───────── */
+function Performance({db,me,scopeUsers}){
+  const agentsIn = scopeUsers.filter(u=>u.role==='agent');
+  const sales = db.sales.filter(s=>scopeUsers.some(u=>u.id===s.agentId));
+  const tm = monthKey(0);
+  const cur = sales.filter(s=>s.month===tm);
+  const ape = cur.reduce((a,s)=>a+s.ape,0);
+  const cnt = cur.length;
+  const goal = me.role==='agent' ? (me.goalApe||300) : (agentsIn.reduce((a,u)=>a+(u.goalApe||300),0)||300);
+  const rate = Math.min(100,Math.round(ape/goal*100));
+  const comm = {수령:0,미수:0,예상:0,환수:0}; cur.forEach(s=>comm[s.commStatus]=(comm[s.commStatus]||0)+s.commission);
+  const trend = [5,4,3,2,1,0].map(o=>({mk:monthKey(o), ape:sales.filter(s=>s.month===monthKey(o)).reduce((a,s)=>a+s.ape,0)}));
+  const tmax = Math.max(1,...trend.map(t=>t.ape));
+  // 상품 믹스
+  const mix={}; cur.forEach(s=>mix[s.product]=(mix[s.product]||0)+1);
+  // 랭킹(관리자)
+  const rank = agentsIn.map(u=>({u,ape:cur.filter(s=>s.agentId===u.id).reduce((a,s)=>a+s.ape,0),
+    cnt:cur.filter(s=>s.agentId===u.id).length})).sort((a,b)=>b.ape-a.ape);
+  const rmax=Math.max(1,...rank.map(r=>r.ape));
+  const isMgr = me.role!=='agent';
+
+  return <div style={{marginTop:16}}>
+    <div style={{fontWeight:900,fontSize:17,marginBottom:12}}>📈 매출·업적 <span className="muted" style={{fontSize:12,fontWeight:600}}>({mLabel(tm)} 기준)</span></div>
+
+    {/* 이번달 요약 */}
+    <div className="row" style={{gap:10}}>
+      <div className="stat"><div className="v">{cnt}건</div><div className="l">신계약</div></div>
+      <div className="stat"><div className="v">{won(ape)}</div><div className="l">환산성적(APE)</div></div>
+      <div className="stat"><div className="v">{isMgr?agentsIn.length:won(cur.reduce((a,s)=>a+Math.round(s.ape/12),0))}</div><div className="l">{isMgr?'설계사':'월납합'}</div></div>
+    </div>
+
+    {/* 목표 달성률 */}
+    <div className="card" style={{marginTop:14}}>
+      <div className="row" style={{justifyContent:'space-between'}}><b>목표 달성률</b><span style={{fontWeight:900,color:'var(--blue)'}}>{rate}%</span></div>
+      <div style={{height:10,borderRadius:6,background:'#EEF2F8',overflow:'hidden',margin:'10px 0 6px'}}>
+        <div style={{height:'100%',width:rate+'%',borderRadius:6,background:'linear-gradient(90deg,#1F5BFF,#38A4FF)',transition:'width .6s'}}/></div>
+      <div className="muted" style={{fontSize:12}}>{won(ape)} / 목표 {won(goal)} · {ape>=goal?'목표 달성! 🎉':'목표까지 '+won(goal-ape)}</div>
+    </div>
+
+    {/* 수수료 */}
+    <div className="card" style={{marginTop:12}}>
+      <b>수수료 현황</b>
+      <div className="row" style={{gap:8,marginTop:10}}>
+        {[['수령','#12A150'],['미수','#C97A00'],['예상','#1F5BFF'],['환수','#E23B4E']].map(([k,col])=>(
+          <div key={k} style={{flex:1,textAlign:'center',background:col+'12',borderRadius:12,padding:'10px 4px'}}>
+            <div style={{fontWeight:900,color:col,fontSize:15}}>{won(comm[k]||0)}</div><div className="muted" style={{fontSize:10.5}}>{k}</div></div>))}
+      </div>
+    </div>
+
+    {/* 월별 추이 */}
+    <div className="card" style={{marginTop:12}}>
+      <b>월별 추이 (APE)</b>
+      <div className="row" style={{alignItems:'flex-end',gap:8,height:110,marginTop:14}}>
+        {trend.map((t,i)=><div key={i} style={{flex:1,display:'flex',flexDirection:'column',alignItems:'center',gap:5}}>
+          <div style={{fontSize:10,fontWeight:800,color:'var(--sub)'}}>{t.ape?won(t.ape):''}</div>
+          <div style={{width:'70%',height:Math.round(t.ape/tmax*80)+4,borderRadius:6,
+            background:i===trend.length-1?'linear-gradient(180deg,#1F5BFF,#38A4FF)':'#D7E0F5',transition:'height .5s'}}/>
+          <div style={{fontSize:10,color:'var(--sub)'}}>{mLabel(t.mk)}</div></div>)}
+      </div>
+    </div>
+
+    {/* 상품 믹스 */}
+    {Object.keys(mix).length>0 && <div className="card" style={{marginTop:12}}>
+      <b>상품 믹스 ({mLabel(tm)})</b>
+      <div style={{display:'flex',flexWrap:'wrap',gap:8,marginTop:10}}>
+        {Object.entries(mix).map(([p,n])=><span key={p} className="chip tag-branch">{p} {n}</span>)}</div>
+    </div>}
+
+    {/* 랭킹 (관리자) */}
+    {isMgr && <div className="card" style={{marginTop:12}}>
+      <b>{me.role==='branch'?'지점':'팀'} 설계사 랭킹 ({mLabel(tm)})</b>
+      <div style={{marginTop:10}}>
+        {rank.map((r,i)=><div key={r.u.id} style={{marginBottom:10}}>
+          <div className="row" style={{justifyContent:'space-between',marginBottom:4}}>
+            <div style={{fontWeight:700,fontSize:13.5}}>{['🥇','🥈','🥉'][i]||(i+1+'.')} {r.u.name}</div>
+            <div style={{fontSize:12,fontWeight:800}}>{won(r.ape)} · {r.cnt}건</div></div>
+          <div style={{height:7,borderRadius:4,background:'#EEF2F8',overflow:'hidden'}}>
+            <div style={{height:'100%',width:(r.ape/rmax*100)+'%',borderRadius:4,background:'linear-gradient(90deg,#1F5BFF,#38A4FF)'}}/></div>
+        </div>)}
+        {rank.length===0 && <div className="muted">설계사 실적이 없습니다.</div>}
+      </div>
+    </div>}
+    <div className="muted" style={{textAlign:'center',fontSize:11,marginTop:12}}>ⓘ 지금은 데모 데이터 · 계약 등록/수수료는 백엔드 연결 후 실집계</div>
+  </div>;
+}
+
 /* ───────── 커뮤니티 / 자료실 (전 인원 열람) ───────── */
 function Community(){
   const cats=['전체','공지','상품자료','세일즈 스크립트','청구/서류','교육'];
