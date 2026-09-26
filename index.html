@@ -382,56 +382,48 @@ function Landing({go,onDev}){
   const [tap,setTap]=useState(0);
   const hitLogo=()=>{ const n=tap+1; setTap(n); if(n>=7){ setTap(0); onDev&&onDev(); } };
   return <div className="scroll" style={{background:'linear-gradient(180deg,#F7F9FD,#EAF0FA)'}}>
-    <div className="pad" style={{paddingTop:40}}>
+    <div className="pad" style={{paddingTop:'max(22px,env(safe-area-inset-top))',display:'flex',flexDirection:'column',minHeight:'100dvh'}}>
       {/* 🔧 왼쪽 상단 그래프 로고 — 7번 클릭 시 개발자 페이지 */}
-      <div onClick={hitLogo} style={{display:'inline-flex',alignItems:'flex-end',gap:3,height:26,marginBottom:16,cursor:'pointer',userSelect:'none'}} title="Insurance Success">
-        <div style={{width:6,height:11,background:'#1F5BFF',borderRadius:2}}/>
-        <div style={{width:6,height:18,background:'#1F5BFF',borderRadius:2}}/>
-        <div style={{width:6,height:26,background:'#0B1B3F',borderRadius:2}}/>
+      <div onClick={hitLogo} style={{display:'inline-flex',alignItems:'flex-end',gap:3,height:22,marginBottom:12,cursor:'pointer',userSelect:'none'}} title="Insurance Success">
+        <div style={{width:5,height:9,background:'#1F5BFF',borderRadius:2}}/>
+        <div style={{width:5,height:15,background:'#1F5BFF',borderRadius:2}}/>
+        <div style={{width:5,height:22,background:'#0B1B3F',borderRadius:2}}/>
       </div>
-      {/* 히어로 이미지 */}
-      <div style={{position:'relative',borderRadius:20,overflow:'hidden',marginBottom:20,boxShadow:'0 12px 30px rgba(20,40,90,.16)'}}>
-        <img src="/hero.jpg" alt="" style={{width:'100%',height:200,objectFit:'cover',display:'block'}}/>
-        <div style={{position:'absolute',inset:0,background:'linear-gradient(180deg,rgba(11,27,63,0) 40%,rgba(11,27,63,.78))'}}/>
-        <div style={{position:'absolute',left:16,right:16,bottom:14,color:'#fff'}}>
-          <div style={{fontSize:12,opacity:.9,fontWeight:600}}>사람의 가치를 더하는 · 보험 전문가의 성장 플랫폼</div>
-          <div style={{fontSize:24,fontWeight:900,letterSpacing:-.5,marginTop:2}}>인슈런스 <span style={{color:'#7FB0FF'}}>석세스</span></div>
+      {/* 히어로 이미지 + 타이틀 + 마스코트 */}
+      <div style={{position:'relative',borderRadius:18,overflow:'hidden',boxShadow:'0 10px 26px rgba(20,40,90,.15)'}}>
+        <img src="/hero.jpg" alt="" style={{width:'100%',height:148,objectFit:'cover',display:'block'}}/>
+        <div style={{position:'absolute',inset:0,background:'linear-gradient(180deg,rgba(11,27,63,.05) 30%,rgba(11,27,63,.82))'}}/>
+        <img src="/mascot.png" alt="슈피" style={{position:'absolute',right:12,top:10,width:48,height:48,borderRadius:12,objectFit:'cover',boxShadow:'0 4px 12px rgba(0,0,0,.25)'}}/>
+        <div style={{position:'absolute',left:16,right:16,bottom:12,color:'#fff'}}>
+          <div style={{fontSize:11,opacity:.9,fontWeight:600}}>보험 전문가의 성장 플랫폼</div>
+          <div style={{fontSize:23,fontWeight:900,letterSpacing:-.5,marginTop:1}}>인슈런스 <span style={{color:'#7FB0FF'}}>석세스</span></div>
+          <div style={{fontSize:9.5,letterSpacing:3,opacity:.7,fontWeight:700,marginTop:1}}>INSURANCE SUCCESS</div>
         </div>
       </div>
-      <div style={{fontSize:11,letterSpacing:4,color:'#8A94AB',fontWeight:700}}>INSURANCE SUCCESS</div>
 
-      {/* 마스코트 인사 */}
-      <div className="card" style={{marginTop:14,display:'flex',alignItems:'center',gap:14}}>
-        <img src="/mascot.png" alt="슈피" style={{width:60,height:60,borderRadius:15,flex:'none',objectFit:'cover',background:'#EEF3FB'}}/>
-        <div><div style={{fontWeight:800,fontSize:13.5}}>매일의 <span style={{color:'var(--blue)'}}>"할 일"</span>이 성과가 됩니다</div>
-          <div className="muted" style={{fontSize:12,marginTop:3,lineHeight:1.45}}>고객·매출·조직을 한 곳에서. 놓치기 쉬운 접점을 자동으로 챙겨드립니다.</div></div>
+      {/* 기능 하이라이트 — 슬림 2열 */}
+      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8,marginTop:12}}>
+        {[['🤝','고객관리','생일·기념일·병원 D-day'],['📈','매출·업적','APE·수수료·랭킹'],['🌱','리쿠르팅','퍼널·정착·13주 신인'],['🏅','승급 관리','직급 요건 자동 진척'],['🏥','병원·청구','실손 서류 자동 안내'],['🗂️','자료·커뮤니티','보관·검색·공유']].map(([ic,t,d])=>
+          <div key={t} className="card" style={{padding:'11px 12px',display:'flex',alignItems:'center',gap:9}}>
+            <div style={{fontSize:19,flex:'none'}}>{ic}</div>
+            <div style={{minWidth:0}}><div style={{fontWeight:800,fontSize:12.5}}>{t}</div>
+              <div className="muted" style={{fontSize:10,marginTop:1,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{d}</div></div></div>)}
       </div>
 
-      {/* 기능 하이라이트 그리드 */}
-      <div style={{fontWeight:900,fontSize:15,margin:'20px 0 10px'}}>핵심 기능</div>
-      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10}}>
-        {[['🤝','고객관리','생일·기념일·병원 D-day 자동'],['📈','매출·업적','APE·수수료·목표·랭킹'],['🌱','리쿠르팅','퍼널·정착률·13주 신인'],['🏅','승급 관리','직급 요건 자동 진척'],['🏥','병원·청구','실손 서류 자동 안내'],['🗂️','자료·커뮤니티','보관·검색·카톡 공유']].map(([ic,t,d])=>
-          <div key={t} className="card" style={{padding:14}}>
-            <div style={{fontSize:22}}>{ic}</div>
-            <div style={{fontWeight:800,marginTop:6,fontSize:13.5}}>{t}</div>
-            <div className="muted" style={{fontSize:11,marginTop:2,lineHeight:1.4}}>{d}</div></div>)}
-      </div>
-
-      {/* 성과 지표 배지 */}
-      <div style={{marginTop:18,borderRadius:18,padding:'18px 18px 16px',background:'linear-gradient(135deg,#0B1B3F,#1F5BFF)',color:'#fff'}}>
-        <div style={{fontSize:12.5,opacity:.85,fontWeight:600,marginBottom:12}}>왜 인슈런스 석세스인가</div>
-        <div style={{display:'flex',gap:10}}>
-          {[['유지율','계약 이탈을 사전 방어'],['정착률','신인 13주 밀착 관리'],['생산성','매일 할 일 자동화']].map(([v,l])=>
-            <div key={v} style={{flex:1,textAlign:'center',background:'rgba(255,255,255,.1)',borderRadius:12,padding:'13px 4px'}}>
-              <div style={{fontWeight:900,fontSize:14.5}}>{v}</div><div style={{fontSize:10,opacity:.82,marginTop:4,lineHeight:1.35}}>{l}</div></div>)}
+      {/* 성과 지표 — 슬림 배지 */}
+      <div style={{marginTop:10,borderRadius:14,padding:'12px 14px',background:'linear-gradient(135deg,#0B1B3F,#1F5BFF)',color:'#fff'}}>
+        <div style={{display:'flex',gap:8}}>
+          {[['유지율','이탈 사전 방어'],['정착률','13주 밀착'],['생산성','할 일 자동화']].map(([v,l])=>
+            <div key={v} style={{flex:1,textAlign:'center'}}>
+              <div style={{fontWeight:900,fontSize:13}}>{v}</div><div style={{fontSize:9.5,opacity:.8,marginTop:2}}>{l}</div></div>)}
         </div>
-        <div style={{fontSize:10.5,opacity:.7,marginTop:12,lineHeight:1.5}}>관리형 조직의 25회차 유지율은 업계 평균(60.7%)의 1.5배 이상 — 데이터가 증명합니다.</div>
       </div>
 
-      <div style={{height:22}}/>
+      <div style={{flex:1,minHeight:12}}/>
       <button className="btn blue" onClick={()=>go('signup')}>시작하기 →</button>
-      <div style={{height:10}}/>
+      <div style={{height:9}}/>
       <button className="btn ghost" onClick={()=>go('login')}>로그인</button>
+      <div style={{height:6}}/>
     </div>
   </div>;
 }
