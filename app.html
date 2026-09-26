@@ -102,6 +102,7 @@ function demoCustomers(){
 function seed(){
   const d = DB.load();
   if(d){ let ch=false; if(!d.customers){d.customers=demoCustomers();ch=true;} if(!d.sales){d.sales=demoSales();ch=true;}
+    if(!d.recruits){d.recruits=demoRecruits();ch=true;}
     (d.users||[]).forEach(u=>{ if(u.role!=='branch'&&u.goalApe==null){u.goalApe=300;ch=true;} });
     if(ch)DB.save(d); return d; } // 마이그레이션
   const branch = {id:'b1', name:'강남지점', code:'GN-1A2B', managerId:'u1'};
@@ -112,7 +113,7 @@ function seed(){
     {id:'u3', name:'박설계', phone:'01033330000', pw:'1234', role:'agent',  branchId:'b1', teamId:'t1', recruiterId:'u2', code:null, goalApe:300, consent:c(), createdAt:Date.now()},
     {id:'u4', name:'최설계', phone:'01044440000', pw:'1234', role:'agent',  branchId:'b1', teamId:'t1', recruiterId:'u2', code:null, goalApe:200, consent:c(), createdAt:Date.now()},
   ];
-  const db = {branches:[branch], teams:[team], users, customers:demoCustomers(), sales:demoSales(), session:null};
+  const db = {branches:[branch], teams:[team], users, customers:demoCustomers(), sales:demoSales(), recruits:demoRecruits(), session:null};
   DB.save(db); return db;
 }
 function c(){ return {tos:true,privacy:true,marketing:false,at:Date.now()} }
@@ -170,6 +171,19 @@ function demoSales(){
         commission:Math.round(ape*0.35),commStatus:o===0?(i%2?'미수':'예상'):'수령'}); } }); };
   gen('u3',[3,4,2,5,3,2]); gen('u4',[1,2,1,2,1,1]);
   return rows;
+}
+
+/* ───────── 리쿠르팅 후보(recruits) 데모 ───────── */
+const REC_STAGES=['가망','면접','위촉','교육','정착'];
+function demoRecruits(){
+  return [
+    {id:'r1',ownerId:'u2',branchId:'b1',teamId:'t1',name:'강도입',phone:'01050000001',stage:'가망',source:'지인소개',addedAt:soon(-3)},
+    {id:'r2',ownerId:'u2',branchId:'b1',teamId:'t1',name:'윤면접',phone:'01050000002',stage:'면접',source:'채용공고',addedAt:soon(-8)},
+    {id:'r3',ownerId:'u2',branchId:'b1',teamId:'t1',name:'조위촉',phone:'01050000003',stage:'위촉',source:'지인소개',addedAt:soon(-14)},
+    {id:'r4',ownerId:'u2',branchId:'b1',teamId:'t1',name:'신입교',phone:'01050000004',stage:'교육',source:'지인소개',addedAt:soon(-30),weekAct:[3,2,1]},
+    {id:'r5',ownerId:'u2',branchId:'b1',teamId:'t1',name:'정착민',phone:'01050000005',stage:'정착',source:'채용공고',addedAt:soon(-90)},
+    {id:'r6',ownerId:'u2',branchId:'b1',teamId:'t1',name:'한가망',phone:'01050000006',stage:'가망',source:'DB',addedAt:soon(-1)},
+  ];
 }
 
 const ROLE = {
@@ -435,7 +449,7 @@ function Home({db,me,logout,flash,commit}){
 
       {tab==='performance' && <Performance db={db} me={me} scopeUsers={scopeUsers}/>}
 
-      {tab==='org' && <OrgView db={db} me={me}/>}
+      {tab==='org' && <OrgView db={db} me={me} commit={commit} flash={flash}/>}
 
       {tab==='community' && <Community/>}
 
@@ -560,14 +574,89 @@ function CustomerDetail({c,onBack,onContact,onSave}){
   </div>;
 }
 
-/* ───────── 조직관리: 지점장=팀별/개별 토글, 팀장=팀원 개별 ───────── */
-function OrgView({db,me}){
+/* ───────── 리쿠르팅: 퍼널·정착률·역산·13주 신인관리·파이프라인 ───────── */
+function Recruiting({db,me,commit,flash}){
+  const inScope=(r)=> me.role==='branch' ? r.branchId===me.branchId : r.teamId===me.teamId;
+  const recs=db.recruits.filter(inScope);
+  const byStage=(s)=>recs.filter(r=>r.stage===s);
+  const post = byStage('위촉').length+byStage('교육').length+byStage('정착').length;
+  const settleRate = post>0 ? Math.round(byStage('정착').length/post*100) : 0;
+  const [addOpen,setAddOpen]=useState(false);
+  const [nf,setNf]=useState({name:'',phone:'',source:'지인소개'});
+  const sc={가망:'#5B6781',면접:'#C97A00',위촉:'#1F5BFF',교육:'#7A5BFF',정착:'#12A150'};
+
+  const advance=(r)=>{ const i=REC_STAGES.indexOf(r.stage); if(i>=REC_STAGES.length-1)return;
+    commit({...db,recruits:db.recruits.map(x=>x.id===r.id?{...x,stage:REC_STAGES[i+1]}:x)}); flash(r.name+' → '+REC_STAGES[i+1]); };
+  const addRec=()=>{ if(!nf.name)return flash('이름을 입력하세요');
+    commit({...db,recruits:[...db.recruits,{id:'R'+Date.now(),ownerId:me.id,branchId:me.branchId,
+      teamId:me.role==='team'?me.teamId:(db.teams.find(t=>t.branchId===me.branchId)||{}).id,
+      name:nf.name,phone:nf.phone,stage:'가망',source:nf.source,addedAt:new Date().toISOString().slice(0,10)}]});
+    setNf({name:'',phone:'',source:'지인소개'}); setAddOpen(false); flash('후보 등록 ✓'); };
+  const targetSettle=5, needAppoint = settleRate>0 ? Math.ceil(targetSettle/(settleRate/100)) : '-';
+
+  return <div>
+    <div className="card"><b>리쿠르팅 퍼널</b>
+      <div style={{display:'flex',gap:6,marginTop:12}}>
+        {REC_STAGES.map(s=>{const n=byStage(s).length;return <div key={s} style={{flex:1,textAlign:'center'}}>
+          <div style={{height:6,borderRadius:3,background:sc[s]}}/>
+          <div style={{fontWeight:900,fontSize:17,marginTop:6,color:sc[s]}}>{n}</div>
+          <div className="muted" style={{fontSize:10.5}}>{s}</div></div>;})}</div></div>
+
+    <div className="row" style={{gap:10,marginTop:12,alignItems:'stretch'}}>
+      <div className="stat" style={{flex:1}}><div className="v" style={{color:settleRate<50?'#E23B4E':'#12A150'}}>{settleRate}%</div><div className="l">정착률</div></div>
+      <div className="card" style={{flex:2,display:'flex',flexDirection:'column',justifyContent:'center'}}>
+        <div style={{fontWeight:800,fontSize:13}}>🎯 퍼널 역산</div>
+        <div className="muted" style={{fontSize:12,marginTop:3}}>정착 <b>{targetSettle}명</b> 목표 → 위촉 <b style={{color:'var(--blue)'}}>{needAppoint}명</b> 필요</div></div></div>
+
+    {byStage('교육').length>0 && <div className="card" style={{marginTop:12}}>
+      <b>🎓 신인 13주 도입 관리</b>
+      {byStage('교육').map(r=>{const w=r.weekAct||[];const avg=w.length?w.reduce((a,b)=>a+b,0)/w.length:0;const risk=avg<2.5;
+        return <div key={r.id} style={{marginTop:10,paddingTop:10,borderTop:'1px solid var(--line)'}}>
+          <div className="row" style={{justifyContent:'space-between'}}><b>{r.name}</b>
+            {risk?<span className="chip" style={{background:'#E23B4E1A',color:'#E23B4E',fontSize:10.5}}>⚠️ 정착 위험</span>:<span className="chip tag-team" style={{fontSize:10.5}}>정상</span>}</div>
+          <div className="row" style={{gap:4,marginTop:8,alignItems:'flex-end',height:44}}>{w.map((a,i)=><div key={i} style={{flex:1,textAlign:'center'}}>
+            <div style={{height:Math.max(4,a*9),borderRadius:3,background:a<2?'#E23B4E':'#1F5BFF',marginBottom:3}}/>
+            <div className="muted" style={{fontSize:9}}>{i+1}주</div></div>)}</div>
+          <div className="muted" style={{fontSize:11,marginTop:4}}>주간 활동(TA/면담) 평균 {avg.toFixed(1)}건 {risk?'· 활동 독려 필요':''}</div>
+        </div>;})}</div>}
+
+    <div className="row" style={{justifyContent:'space-between',margin:'16px 0 8px'}}>
+      <b>후보 파이프라인 ({recs.length})</b>
+      <button className="chip tag-branch" onClick={()=>setAddOpen(!addOpen)}>＋ 후보</button></div>
+    {addOpen && <div className="card" style={{marginBottom:10}}>
+      <div className="field" style={{marginBottom:8}}><input value={nf.name} onChange={e=>setNf({...nf,name:e.target.value})} placeholder="후보 이름"/></div>
+      <div className="row" style={{gap:8}}>
+        <input style={{flex:1,height:46,border:'1.5px solid var(--line)',borderRadius:11,padding:'0 12px'}} value={nf.phone} onChange={e=>setNf({...nf,phone:e.target.value})} placeholder="연락처"/>
+        <select style={{height:46,border:'1.5px solid var(--line)',borderRadius:11,padding:'0 10px',background:'#fff'}} value={nf.source} onChange={e=>setNf({...nf,source:e.target.value})}><option>지인소개</option><option>채용공고</option><option>DB</option></select></div>
+      <button className="btn" style={{height:46,marginTop:10}} onClick={addRec}>등록</button></div>}
+    <div className="card" style={{padding:'2px 14px'}}>
+      {recs.length?recs.map(r=><div key={r.id} className="listrow">
+        <div className="ava" style={{background:sc[r.stage]}}>{r.name[0]}</div>
+        <div style={{flex:1}}><div style={{fontWeight:700,fontSize:14}}>{r.name} <span className="chip" style={{background:sc[r.stage]+'1A',color:sc[r.stage],fontSize:10}}>{r.stage}</span></div>
+          <div className="muted" style={{fontSize:11.5}}>{r.source} · {r.phone}</div></div>
+        {r.stage!=='정착' && <button className="chip tag-branch" onClick={()=>advance(r)}>다음 →</button>}
+      </div>):<div className="muted" style={{padding:'12px 0'}}>후보가 없습니다.</div>}</div>
+  </div>;
+}
+
+/* ───────── 조직관리: 구성원(팀별/개별) + 리쿠르팅 ───────── */
+function OrgView({db,me,commit,flash}){
+  const [section,setSection]=useState('member');
+  return <div style={{marginTop:16}}>
+    <div className="seg" style={{marginBottom:14}}>
+      <button className={section==='member'?'on':''} onClick={()=>setSection('member')}>구성원</button>
+      <button className={section==='recruit'?'on':''} onClick={()=>setSection('recruit')}>리쿠르팅</button>
+    </div>
+    {section==='recruit' ? <Recruiting db={db} me={me} commit={commit} flash={flash}/> : <Members db={db} me={me}/>}
+  </div>;
+}
+function Members({db,me}){
   const [mode,setMode]=useState(me.role==='branch'?'team':'agent');
   const teams=db.teams.filter(t=>t.branchId===me.branchId);
   const agentsOf=(tid)=>db.users.filter(u=>u.role==='agent'&&u.teamId===tid);
   const allAgents=db.users.filter(u=>u.role==='agent'&&(me.role==='branch'?u.branchId===me.branchId:u.teamId===me.teamId));
 
-  return <div style={{marginTop:16}}>
+  return <div>
     {me.role==='branch' && <div className="seg" style={{marginBottom:14}}>
       <button className={mode==='team'?'on':''} onClick={()=>setMode('team')}>팀별 보기</button>
       <button className={mode==='agent'?'on':''} onClick={()=>setMode('agent')}>전체 설계사</button>
