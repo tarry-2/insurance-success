@@ -78,7 +78,7 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@babel/standalone@7.25.6/babel.min.js"></script>
 <script type="text/babel" data-presets="react">
-const {useState,useEffect} = React;
+const {useState,useEffect,useRef} = React;
 
 /* ───────── Supabase 클라이언트 ───────── */
 const SB_URL='https://lfpfofwlesfriegkwold.supabase.co';
@@ -101,6 +101,29 @@ function ThemeFab({theme,toggleTheme}){
   return <button onClick={toggleTheme} title="다크/라이트" style={{position:'absolute',top:'max(14px,env(safe-area-inset-top))',right:16,zIndex:40,
     width:38,height:38,borderRadius:12,background:'var(--card)',border:'1.5px solid var(--line)',color:'var(--ink)',fontSize:16,
     display:'flex',alignItems:'center',justifyContent:'center',boxShadow:'0 2px 8px rgba(20,40,90,.1)'}}>{theme==='dark'?'☀️':'🌙'}</button>;
+}
+
+// 🎬 인트로 영상(애니메이션) — 자동재생(무음)·루프·모바일 인라인 + 스피커/크게보기
+function IntroVideo({radius=20,overlay=null}){
+  const ref = useRef(null);
+  const [muted,setMuted] = useState(true);
+  const toggleSound = (e)=>{ e.stopPropagation(); const v=ref.current; if(!v) return;
+    const m=!v.muted; v.muted=m; setMuted(m); if(!m){ v.play&&v.play().catch(()=>{}); } };
+  const goBig = (e)=>{ e.stopPropagation(); const v=ref.current; if(!v) return;
+    if(v.requestFullscreen) v.requestFullscreen();
+    else if(v.webkitEnterFullscreen) v.webkitEnterFullscreen();      // iOS Safari
+    else if(v.webkitRequestFullscreen) v.webkitRequestFullscreen(); };
+  const btn={width:34,height:34,borderRadius:10,border:'none',background:'rgba(11,27,63,.55)',color:'#fff',
+    fontSize:15,display:'flex',alignItems:'center',justifyContent:'center',cursor:'pointer',backdropFilter:'blur(4px)'};
+  return <div style={{position:'relative',borderRadius:radius,overflow:'hidden',boxShadow:'0 12px 30px rgba(20,40,90,.16)',background:'#0B1B3F'}}>
+    <video ref={ref} src="/intro.mp4" poster="/intro-poster.jpg" autoPlay muted loop playsInline preload="auto"
+      style={{width:'100%',aspectRatio:'16 / 9',height:'auto',objectFit:'cover',display:'block'}}/>
+    {overlay}
+    <div style={{position:'absolute',right:10,bottom:10,display:'flex',gap:7,zIndex:3}}>
+      <button onClick={toggleSound} style={btn} title={muted?'소리 켜기':'소리 끄기'} aria-label="소리">{muted?'🔇':'🔊'}</button>
+      <button onClick={goBig} style={btn} title="크게 보기" aria-label="크게 보기">⛶</button>
+    </div>
+  </div>;
 }
 
 const soon=(days)=>{const t=new Date();t.setDate(t.getDate()+days);return `${t.getFullYear()}-${String(t.getMonth()+1).padStart(2,'0')}-${String(t.getDate()).padStart(2,'0')}`};
@@ -389,6 +412,20 @@ function App(){
   const logout = async()=>{ try{ if(db && db.mode==='real') await SB.auth.signOut(); }catch(e){}
     const s=seed(); setDb({...s,mode:'demo',session:null}); setRoute('landing'); };
 
+  // 현재 실 세션 기준으로 전체 데이터 재적재(관리자가 계정 발급 후 목록 갱신)
+  const reload = async()=>{ try{ const {data}=await SB.auth.getSession(); if(data&&data.session){ const d=await loadAll(data.session.user.id); setDb(d); } }catch(e){} };
+  // 🔑 관리자 계정 발급 = service_role Edge Function 호출(프론트엔 service_role 없음).
+  //   지점장/팀장은 로그인 JWT가 자동 첨부되어 서버가 위계 스코프를 강제한다.
+  const svcCreateAccount = async(acc)=>{
+    const body={name:acc.name,phone:acc.phone,pw:acc.pw,role:acc.role,branchId:acc.branchId||null,teamId:acc.teamId||null};
+    try{
+      const {data,error}=await SB.functions.invoke('create-account',{body});
+      if(error){ let msg='계정 발급 실패'; try{ const j=await error.context.json(); if(j&&j.error) msg=j.error; }catch(e){} return {error:msg}; }
+      if(data&&data.error) return {error:data.error};
+      return {ok:true,user:data.user,tempPassword:data.tempPassword};
+    }catch(e){ return {error:'네트워크 오류: '+String(e)}; }
+  };
+
   // 🔧 개발자 콘솔 — 왼쪽 상단 그래프 7클릭 + 코드 → 개발자 페이지
   const onDev = ()=>{ const pw=window.prompt('🔧 개발자 페이지 접속 코드'); if(pw==null) return;
     if(pw===DEV_CODE){ demoLogin('hq'); } else flash('코드가 올바르지 않습니다'); };
@@ -403,8 +440,8 @@ function App(){
   else if(route==='signup') view=<Signup go={go} signup={signup} flash={flash} {...tp}/>;
   else if(route==='terms') view=<Legal kind="terms" go={go}/>;
   else if(route==='privacy') view=<Legal kind="privacy" go={go}/>;
-  else if(route==='home' && me && me.role==='hq') view=<Admin db={db} me={me} logout={logout} flash={flash} commit={commit} {...tp}/>;
-  else if(route==='home' && me) view=<Home db={db} me={me} logout={logout} flash={flash} commit={commit} {...tp}/>;
+  else if(route==='home' && me && me.role==='hq') view=<Admin db={db} me={me} logout={logout} flash={flash} commit={commit} svcCreateAccount={svcCreateAccount} reload={reload} {...tp}/>;
+  else if(route==='home' && me) view=<Home db={db} me={me} logout={logout} flash={flash} commit={commit} svcCreateAccount={svcCreateAccount} reload={reload} {...tp}/>;
   else view=<Landing go={go} onDev={onDev} {...tp}/>;
 
   return <div className="app">{view}{toast&&<div className="toast">{toast}</div>}</div>;
@@ -482,16 +519,8 @@ function Landing({go,onDev,theme,toggleTheme}){
         <div style={{width:6,height:16,background:'#1F5BFF',borderRadius:2}}/>
         <div style={{width:6,height:24,background:'#0B1B3F',borderRadius:2}}/>
       </div>
-      {/* 히어로 이미지 */}
-      <div style={{position:'relative',borderRadius:20,overflow:'hidden',boxShadow:'0 12px 30px rgba(20,40,90,.16)'}}>
-        <img src="/hero.jpg" alt="" style={{width:'100%',height:172,objectFit:'cover',display:'block'}}/>
-        <div style={{position:'absolute',inset:0,background:'linear-gradient(180deg,rgba(11,27,63,0) 40%,rgba(11,27,63,.78))'}}/>
-        <div style={{position:'absolute',left:16,right:16,bottom:14,color:'#fff'}}>
-          <div style={{fontSize:12,opacity:.9,fontWeight:600}}>보험 전문가의 성장 플랫폼</div>
-          <div style={{fontSize:24,fontWeight:900,letterSpacing:-.5,marginTop:2}}>인슈런스 <span style={{color:'#7FB0FF'}}>석세스</span></div>
-          <div style={{fontSize:10,letterSpacing:3,opacity:.7,fontWeight:700,marginTop:1}}>INSURANCE SUCCESS</div>
-        </div>
-      </div>
+      {/* 🎬 인트로 영상(애니메이션) */}
+      <IntroVideo radius={20}/>
 
       {/* 기능 하이라이트 그리드 */}
       <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:9,marginTop:12}}>
@@ -630,6 +659,8 @@ function Login({go,login,demoLogin,flash,theme,toggleTheme}){
     <ThemeFab theme={theme} toggleTheme={toggleTheme}/>
     <div className="top"><button className="back" onClick={()=>go('landing')}>‹</button><div style={{fontWeight:800}}>로그인</div></div>
     <div className="pad">
+      {/* 🎬 인트로 영상(애니메이션) */}
+      <div style={{marginBottom:16}}><IntroVideo radius={18}/></div>
       <div className="h1" style={{fontSize:22,marginBottom:6}}>다시 오신 것을<br/>환영합니다</div>
       <div className="muted" style={{marginBottom:20}}>보험 전문가 계정으로 로그인하세요.</div>
       <div className="field"><label>전화번호 (아이디)</label><input value={phone} onChange={e=>setPhone(e.target.value.replace(/\D/g,''))} placeholder="01012345678" inputMode="numeric"/></div>
@@ -659,7 +690,7 @@ function Legal({kind,go}){
 }
 
 /* ───────── 홈 (역할별 스코프) ───────── */
-function Home({db,me,logout,flash,commit,theme,toggleTheme}){
+function Home({db,me,logout,flash,commit,theme,toggleTheme,svcCreateAccount,reload}){
   const [tab,setTab]=useState('home');
   const [openCust,setOpenCust]=useState(null); // 고객 상세 id
   const [addCust,setAddCust]=useState(false);
@@ -745,7 +776,7 @@ function Home({db,me,logout,flash,commit,theme,toggleTheme}){
 
       {tab==='docs' && <Documents db={db} me={me} scopeUsers={scopeUsers} commit={commit} flash={flash}/>}
 
-      {tab==='org' && <OrgView db={db} me={me} commit={commit} flash={flash}/>}
+      {tab==='org' && <OrgView db={db} me={me} commit={commit} flash={flash} svcCreateAccount={svcCreateAccount} reload={reload}/>}
 
       {tab==='community' && <Community db={db} me={me} commit={commit} flash={flash}/>}
 
@@ -971,7 +1002,7 @@ function Recruiting({db,me,commit,flash}){
 }
 
 /* ───────── 조직관리: 구성원(팀별/개별) + 리쿠르팅 ───────── */
-function OrgView({db,me,commit,flash}){
+function OrgView({db,me,commit,flash,svcCreateAccount,reload}){
   const [section,setSection]=useState('member');
   return <div style={{marginTop:16}}>
     <div className="seg" style={{marginBottom:14}}>
@@ -991,14 +1022,23 @@ function Members({db,me,commit,flash}){
   const addTeam=(name)=>{ if(!name)return; commit({...db,teams:[...db.teams,{id:uuid(),branchId:me.branchId,name,code:rid('TM'),leaderId:null}]}); flash('팀 추가됨'); };
   const assignUser=(uid,teamId)=>{ const t=db.teams.find(x=>x.id===teamId); commit({...db,users:db.users.map(u=>u.id===uid?{...u,teamId,branchId:t?t.branchId:u.branchId}:u)}); flash('팀 이동 완료 ✓'); };
   // 지점장=팀장/설계사, 팀장=설계사만 생성
-  const createAccount=(acc)=>{ if(db.users.find(u=>u.phone===acc.phone)){flash('이미 있는 전화번호');return false;}
+  const createAccount=async(acc)=>{ if(db.users.find(u=>u.phone===acc.phone)){flash('이미 있는 전화번호');return false;}
+    // 실모드: service_role Edge Function 으로 실제 로그인 계정 발급(서버가 위계 스코프 강제) → 재적재
+    if(db.mode==='real'){
+      const r=await svcCreateAccount({name:acc.name,phone:acc.phone,pw:acc.pw,role:acc.role,teamId:acc.teamId||(me.role==='team'?me.teamId:null)});
+      if(r.error){ flash(r.error); return false; }
+      await reload();
+      flash(`계정 발급 ✓  아이디 ${acc.phone} / 비번 ${acc.pw}`);
+      return true;
+    }
+    // 데모: 로컬 즉시 생성
     const uid=uuid(); const code=acc.role==='team'?rid('TM'):null;
     const nu={id:uid,name:acc.name,phone:acc.phone,pw:acc.pw,role:acc.role,branchId:me.branchId,teamId:acc.teamId||(me.role==='team'?me.teamId:null),
       recruiterId:me.id,code,grade:acc.role==='team'?'GOLD':'FC',goalApe:200,consent:{tos:true,privacy:true,at:Date.now()}};
     const nd={...db,users:[...db.users,nu]};
     if(acc.role==='team'&&acc.teamId) nd.teams=nd.teams.map(t=>t.id===acc.teamId?{...t,leaderId:uid}:t);
     commit(nd);
-    flash(db.mode==='real'?'⚠️ 로컬 생성됨 — 실계정은 Edge Function 후 발급':`계정 생성 ✓  아이디 ${acc.phone} / 비번 ${acc.pw}`);
+    flash(`계정 생성 ✓  아이디 ${acc.phone} / 비번 ${acc.pw}`);
     return true;
   };
 
@@ -1041,6 +1081,7 @@ function Members({db,me,commit,flash}){
 function MemberModal({db,me,m,onClose,createAccount,assignUser}){
   const teams=db.teams.filter(t=>t.branchId===me.branchId);
   const [f,setF]=useState({name:'',phone:'',pw:'',role:me.role==='branch'?'agent':'agent',teamId:me.role==='team'?me.teamId:(teams[0]||{}).id||''});
+  const [busy,setBusy]=useState(false);
   const wrap={position:'fixed',inset:0,background:'rgba(0,0,0,.5)',zIndex:200,display:'flex',alignItems:'flex-end',justifyContent:'center'};
   const sheet={width:'100%',maxWidth:480,background:'var(--card)',color:'var(--ink)',borderTopLeftRadius:22,borderTopRightRadius:22,padding:'20px 20px calc(env(safe-area-inset-bottom,0px) + 20px)',maxHeight:'88vh',overflowY:'auto'};
   const inp={width:'100%',height:46,border:'1.5px solid var(--line)',borderRadius:11,padding:'0 12px',background:'var(--field)',color:'var(--ink)',marginBottom:10};
@@ -1055,8 +1096,8 @@ function MemberModal({db,me,m,onClose,createAccount,assignUser}){
     </div></div>;
   }
   const roles = me.role==='branch'?['team','agent']:['agent'];
-  const submit=()=>{ if(!f.name||f.phone.length<10||f.pw.length<6){alert('이름·전화번호·비번(6자↑) 확인');return;}
-    if(createAccount({name:f.name,phone:f.phone,pw:f.pw,role:f.role,teamId:f.teamId||null})) onClose(); };
+  const submit=async()=>{ if(!f.name||f.phone.length<10||f.pw.length<6){alert('이름·전화번호·비번(6자↑) 확인');return;}
+    setBusy(true); const ok=await createAccount({name:f.name,phone:f.phone,pw:f.pw,role:f.role,teamId:f.teamId||null}); setBusy(false); if(ok) onClose(); };
   return <div style={wrap} onClick={onClose}><div style={sheet} onClick={e=>e.stopPropagation()}>
     <div style={{fontWeight:900,fontSize:17,marginBottom:4}}>계정 생성</div>
     <div className="muted" style={{fontSize:12,marginBottom:14}}>전화번호가 아이디입니다. 비번을 발급해 전달하세요.</div>
@@ -1067,14 +1108,14 @@ function MemberModal({db,me,m,onClose,createAccount,assignUser}){
     <input style={inp} value={f.pw} onChange={e=>setF({...f,pw:e.target.value})} placeholder="비밀번호(6자↑)"/>
     {me.role==='branch' && <><div style={{fontSize:11.5,fontWeight:700,color:'var(--sub)',marginBottom:6}}>소속 팀</div>
       <select style={inp} value={f.teamId} onChange={e=>setF({...f,teamId:e.target.value})}><option value="">— 선택 —</option>{teams.map(t=><option key={t.id} value={t.id}>{t.name}</option>)}</select></>}
-    <button className="btn blue" onClick={submit}>계정 생성</button>
+    <button className="btn blue" disabled={busy} onClick={submit}>{busy?'발급 중…':'계정 생성'}</button>
     <div style={{height:8}}/><button className="btn ghost" onClick={onClose}>취소</button>
   </div></div>;
 }
 /* ───────── 관리자(본사) 페이지 ───────── */
 const DARK_VARS={'--bg':'#0C1220','--card':'#161F30','--ink':'#E9EEF7','--sub':'#8A99B4','--line':'#26324A','--soft':'#1C2740'};
 const LIGHT_VARS={'--soft':'#F5F8FF'};
-function Admin({db,me,logout,flash,commit,theme,toggleTheme}){
+function Admin({db,me,logout,flash,commit,theme,toggleTheme,svcCreateAccount,reload}){
   const [sec,setSec]=useState('dash');
   const dark=theme==='dark';
   const [exp,setExp]=useState(null); const [q,setQ]=useState(''); const [editUser,setEditUser]=useState(null); const [dataCat,setDataCat]=useState(null);
@@ -1104,8 +1145,16 @@ function Admin({db,me,logout,flash,commit,theme,toggleTheme}){
   const renameBranch=(bid,name)=>commit({...db,branches:db.branches.map(b=>b.id===bid?{...b,name}:b)});
   const renameTeam=(tid,name)=>commit({...db,teams:db.teams.map(t=>t.id===tid?{...t,name}:t)});
   // ── 계정 생성(아이디=전화번호, 비번 발급). 데모=로컬 즉시 / 실모드=Edge Function 필요(안내) ──
-  const createAccount=(acc)=>{ // {name,phone,pw,role,branchId,teamId}
+  const createAccount=async(acc)=>{ // {name,phone,pw,role,branchId,teamId}
     if(db.users.find(u=>u.phone===acc.phone)) { flash('이미 있는 전화번호'); return false; }
+    // 실모드: Edge Function 실발급(개발자콘솔이 실 세션일 때). 데모모드는 아래 로컬 경로.
+    if(db.mode==='real'){
+      const r=await svcCreateAccount(acc);
+      if(r.error){ flash(r.error); return false; }
+      await reload();
+      flash(`계정 발급 ✓  아이디 ${acc.phone} / 비번 ${acc.pw}`);
+      return true;
+    }
     const uid=uuid(); const code=acc.role==='branch'?rid('GN'):acc.role==='team'?rid('TM'):null;
     const nu={id:uid,name:acc.name,phone:acc.phone,pw:acc.pw,role:acc.role,branchId:acc.branchId||null,teamId:acc.teamId||null,
       recruiterId:me.id,code,grade:acc.role==='branch'?'PLAT':acc.role==='team'?'GOLD':'FC',goalApe:acc.role==='agent'?200:300,consent:{tos:true,privacy:true,at:Date.now()}};
@@ -1114,8 +1163,7 @@ function Admin({db,me,logout,flash,commit,theme,toggleTheme}){
     if(acc.role==='team'&&acc.teamId) nd.teams=nd.teams.map(t=>t.id===acc.teamId?{...t,leaderId:uid}:t);
     if(acc.role==='branch'&&acc.branchId) nd.branches=nd.branches.map(b=>b.id===acc.branchId?{...b,managerId:uid}:b);
     commit(nd);
-    if(db.mode==='real') flash('⚠️ 로컬 생성됨 — 실제 로그인 계정은 Edge Function 배포 후 발급');
-    else flash(`계정 생성 ✓  아이디 ${acc.phone} / 비번 ${acc.pw}`);
+    flash(`계정 생성 ✓  아이디 ${acc.phone} / 비번 ${acc.pw}`);
     return true;
   };
   // ── 팀원 배정/이동 ──
@@ -1280,6 +1328,7 @@ function Admin({db,me,logout,flash,commit,theme,toggleTheme}){
 // 계정 생성 / 팀 이동 모달
 function OrgModal({db,me,m,onClose,createAccount,assignUser}){
   const [f,setF]=useState({name:'',phone:'',pw:'',role:'agent',branchId:(db.branches[0]||{}).id||'',teamId:''});
+  const [busy,setBusy]=useState(false);
   const teamsOf=(bid)=>db.teams.filter(t=>t.branchId===bid);
   const wrap={position:'fixed',inset:0,background:'rgba(0,0,0,.5)',zIndex:200,display:'flex',alignItems:'flex-end',justifyContent:'center'};
   const sheet={width:'100%',maxWidth:480,background:'var(--card)',color:'var(--ink)',borderTopLeftRadius:22,borderTopRightRadius:22,padding:'20px 20px calc(env(safe-area-inset-bottom,0px) + 20px)',maxHeight:'88vh',overflowY:'auto'};
@@ -1299,8 +1348,8 @@ function OrgModal({db,me,m,onClose,createAccount,assignUser}){
     </div></div>;
   }
   // account 생성
-  const submit=()=>{ if(!f.name||f.phone.length<10||f.pw.length<6){alert('이름·전화번호·비번(6자↑) 확인');return;}
-    if(createAccount({name:f.name,phone:f.phone,pw:f.pw,role:f.role,branchId:f.branchId||null,teamId:f.role==='branch'?null:(f.teamId||null)})) onClose(); };
+  const submit=async()=>{ if(!f.name||f.phone.length<10||f.pw.length<6){alert('이름·전화번호·비번(6자↑) 확인');return;}
+    setBusy(true); const ok=await createAccount({name:f.name,phone:f.phone,pw:f.pw,role:f.role,branchId:f.branchId||null,teamId:f.role==='branch'?null:(f.teamId||null)}); setBusy(false); if(ok) onClose(); };
   return <div style={wrap} onClick={onClose}><div style={sheet} onClick={e=>e.stopPropagation()}>
     <div style={{fontWeight:900,fontSize:17,marginBottom:4}}>계정 생성</div>
     <div className="muted" style={{fontSize:12,marginBottom:14}}>전화번호가 아이디가 됩니다. 비번을 발급해 전달하세요.</div>
@@ -1313,7 +1362,7 @@ function OrgModal({db,me,m,onClose,createAccount,assignUser}){
     <select style={inp} value={f.branchId} onChange={e=>setF({...f,branchId:e.target.value,teamId:''})}>{db.branches.map(b=><option key={b.id} value={b.id}>{b.name}</option>)}</select>
     {f.role!=='branch' && <><div style={{fontSize:11.5,fontWeight:700,color:'var(--sub)',marginBottom:6}}>소속 팀</div>
       <select style={inp} value={f.teamId} onChange={e=>setF({...f,teamId:e.target.value})}><option value="">— 선택 —</option>{teamsOf(f.branchId).map(t=><option key={t.id} value={t.id}>{t.name}</option>)}</select></>}
-    <button className="btn blue" onClick={submit}>계정 생성</button>
+    <button className="btn blue" disabled={busy} onClick={submit}>{busy?'발급 중…':'계정 생성'}</button>
     <div style={{height:8}}/>
     <button className="btn ghost" onClick={onClose}>취소</button>
   </div></div>;
