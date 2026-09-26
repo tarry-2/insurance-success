@@ -884,6 +884,20 @@ function Recruiting({db,me,commit,flash}){
   const [nf,setNf]=useState({name:'',phone:'',source:'지인소개'});
   const sc={가망:'#5B6781',면접:'#C97A00',위촉:'#1F5BFF',교육:'#7A5BFF',정착:'#12A150'};
 
+  // 📩 공개 지원함(applications) — 실 모드에서만 로드(신규 상태만)
+  const [apps,setApps]=useState([]);
+  const loadApps=async()=>{ if(db.mode!=='real'){ setApps([]); return; }
+    try{ const {data}=await SB.from('applications').select('*').eq('status','신규').order('created_at',{ascending:false}); setApps(data||[]); }catch(e){} };
+  useEffect(()=>{ loadApps(); },[]);
+  const acceptApp=async(a)=>{
+    const nr={id:uuid(),ownerId:me.id,branchId:me.branchId,teamId:me.role==='team'?me.teamId:(db.teams.find(t=>t.branchId===me.branchId)||{}).id,
+      name:a.name,phone:a.phone||'',stage:'가망',source:'지원',addedAt:new Date().toISOString().slice(0,10)};
+    commit({...db,recruits:[...db.recruits,nr]});
+    try{ await SB.from('applications').update({status:'연락',assigned_to:me.id}).eq('id',a.id); }catch(e){}
+    setApps(apps.filter(x=>x.id!==a.id)); flash(a.name+' → 리쿠르팅 가망으로 전환 ✓');
+  };
+  const dismissApp=async(a)=>{ try{ await SB.from('applications').update({status:'보류'}).eq('id',a.id); }catch(e){} setApps(apps.filter(x=>x.id!==a.id)); };
+
   const advance=(r)=>{ const i=REC_STAGES.indexOf(r.stage); if(i>=REC_STAGES.length-1)return;
     commit({...db,recruits:db.recruits.map(x=>x.id===r.id?{...x,stage:REC_STAGES[i+1]}:x)}); flash(r.name+' → '+REC_STAGES[i+1]); };
   const addRec=()=>{ if(!nf.name)return flash('이름을 입력하세요');
@@ -894,6 +908,24 @@ function Recruiting({db,me,commit,flash}){
   const targetSettle=5, needAppoint = settleRate>0 ? Math.ceil(targetSettle/(settleRate/100)) : '-';
 
   return <div>
+    {/* 📩 공개 지원함 — 새 지원자를 리쿠르팅 가망으로 */}
+    {apps.length>0 && <div className="card" style={{marginBottom:12,border:'2px solid #1F5BFF',background:'var(--soft)'}}>
+      <div className="row" style={{justifyContent:'space-between'}}>
+        <b>📩 새 지원 <span style={{color:'var(--blue)'}}>{apps.length}</span></b>
+        <span className="muted" style={{fontSize:11}}>홈페이지 상담 신청</span></div>
+      <div style={{marginTop:8}}>
+        {apps.map(a=><div key={a.id} className="row" style={{padding:'9px 0',borderTop:'1px solid var(--line)'}}>
+          <div className="ava" style={{background:'#1F5BFF'}}>{(a.name||'?')[0]}</div>
+          <div style={{flex:1,minWidth:0}}>
+            <div style={{fontWeight:700,fontSize:13.5}}>{a.name} <span className="muted" style={{fontSize:11}}>{a.region||''}</span></div>
+            <div className="muted" style={{fontSize:11,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{a.phone} · {a.motive||'상담 신청'}</div></div>
+          <button className="chip tag-branch" onClick={()=>acceptApp(a)}>＋가망</button>
+          <button onClick={()=>dismissApp(a)} style={{color:'var(--sub)',fontSize:16,marginLeft:4}}>✕</button>
+        </div>)}
+      </div>
+    </div>}
+    {db.mode!=='real' && <div className="muted" style={{fontSize:11,marginBottom:12,textAlign:'center'}}>ⓘ 홈페이지(?join) 지원자는 실제 로그인 시 여기에 표시됩니다</div>}
+
     <div className="card"><b>리쿠르팅 퍼널</b>
       <div style={{display:'flex',gap:6,marginTop:12}}>
         {REC_STAGES.map(s=>{const n=byStage(s).length;return <div key={s} style={{flex:1,textAlign:'center'}}>
