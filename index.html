@@ -11,7 +11,10 @@
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
 <style>
   *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
-  :root{--navy:#0B1B3F;--blue:#1F5BFF;--blue2:#38A4FF;--ink:#0B1B3F;--sub:#5B6781;--line:#E4EAF3;--bg:#F4F7FC;--card:#fff}
+  :root{--navy:#0B1B3F;--blue:#1F5BFF;--blue2:#38A4FF;--ink:#0B1B3F;--sub:#5B6781;--line:#E4EAF3;--bg:#F4F7FC;--card:#fff;
+    --field:#fff;--soft:#F5F8FF;--seg:#EDF1F8;--track:#EEF2F8;--legal:#3A4763;--navbtn:#9AA6BE;--landbg:linear-gradient(180deg,#F7F9FD,#EAF0FA)}
+  [data-theme="dark"]{--navy:#0B1220;--ink:#E9EEF7;--sub:#8A99B4;--line:#26324A;--bg:#0C1220;--card:#161F30;
+    --field:#1C2740;--soft:#1C2740;--seg:#1C2740;--track:#26324A;--legal:#C3CEE0;--navbtn:#6E7C97;--landbg:linear-gradient(180deg,#0C1220,#0F1830)}
   html,body{height:100%}
   body{font-family:'Pretendard Variable',Pretendard,system-ui,-apple-system,sans-serif;color:var(--ink);background:var(--bg);
     -webkit-font-smoothing:antialiased}
@@ -25,10 +28,10 @@
     display:flex;align-items:center;justify-content:center;gap:8px;transition:transform .14s,filter .2s}
   .btn:active{transform:scale(.97)} .btn:disabled{opacity:.4}
   .btn.blue{background:linear-gradient(135deg,var(--blue),var(--blue2))}
-  .btn.ghost{background:#fff;color:var(--navy);border:1.5px solid var(--line)}
+  .btn.ghost{background:var(--card);color:var(--ink);border:1.5px solid var(--line)}
   .field{margin-bottom:14px}
   .field label{display:block;font-size:12.5px;font-weight:700;color:var(--sub);margin-bottom:7px}
-  .field input,.field select{width:100%;height:50px;border:1.5px solid var(--line);border-radius:12px;padding:0 14px;background:#fff;
+  .field input,.field select{width:100%;height:50px;border:1.5px solid var(--line);border-radius:12px;padding:0 14px;background:var(--field);color:var(--ink);
     outline:none;transition:border-color .15s}
   .field input:focus,.field select:focus{border-color:var(--blue)}
   .err{color:#E23B4E;font-size:12px;margin-top:6px}
@@ -37,9 +40,9 @@
   .row{display:flex;align-items:center;gap:10px}
   .chip{font-size:11px;font-weight:800;padding:4px 10px;border-radius:20px}
   .tag-branch{background:#EAF0FF;color:#1F5BFF}.tag-team{background:#E9FBF1;color:#12A150}.tag-agent{background:#FFF3E0;color:#C97A00}
-  .rolecard{flex:1;border:2px solid var(--line);border-radius:16px;padding:16px 12px;text-align:center;background:#fff;
+  .rolecard{flex:1;border:2px solid var(--line);border-radius:16px;padding:16px 12px;text-align:center;background:var(--card);
     transition:.15s;cursor:pointer}
-  .rolecard.on{border-color:var(--blue);background:#F5F8FF;box-shadow:0 6px 20px rgba(31,91,255,.14)}
+  .rolecard.on{border-color:var(--blue);background:var(--soft);box-shadow:0 6px 20px rgba(31,91,255,.14)}
   .rolecard .ic{font-size:26px}.rolecard .t{font-weight:800;margin-top:6px;font-size:14px}.rolecard .d{font-size:10.5px;color:var(--sub);margin-top:3px}
   .check{display:flex;align-items:flex-start;gap:10px;padding:11px 0;font-size:13.5px}
   .check .box{width:22px;height:22px;border-radius:7px;border:2px solid var(--line);flex:none;display:flex;align-items:center;justify-content:center;
@@ -47,22 +50,22 @@
   .check .box.on{background:var(--blue);border-color:var(--blue)}
   .link{color:var(--blue);font-weight:700;text-decoration:underline;font-size:12.5px}
   .top{display:flex;align-items:center;gap:12px;padding:16px 20px}
-  .back{width:38px;height:38px;border-radius:11px;background:#fff;border:1.5px solid var(--line);display:flex;align-items:center;justify-content:center;font-size:18px}
+  .back{width:38px;height:38px;border-radius:11px;background:var(--card);color:var(--ink);border:1.5px solid var(--line);display:flex;align-items:center;justify-content:center;font-size:18px}
   .h1{font-size:24px;font-weight:900;letter-spacing:-.5px;line-height:1.25}
   .muted{color:var(--sub);font-size:13.5px;line-height:1.6}
-  .legal{font-size:12.5px;line-height:1.85;color:#3A4763;white-space:pre-wrap}
-  .stat{flex:1;background:#fff;border-radius:14px;padding:14px;text-align:center}
+  .legal{font-size:12.5px;line-height:1.85;color:var(--legal);white-space:pre-wrap}
+  .stat{flex:1;background:var(--card);border-radius:14px;padding:14px;text-align:center}
   .stat .v{font-size:20px;font-weight:900}.stat .l{font-size:11px;color:var(--sub);margin-top:2px}
-  .seg{display:flex;background:#EDF1F8;border-radius:12px;padding:4px;gap:4px}
+  .seg{display:flex;background:var(--seg);border-radius:12px;padding:4px;gap:4px}
   .seg button{flex:1;height:38px;border-radius:9px;font-size:13px;font-weight:800;color:var(--sub)}
-  .seg button.on{background:#fff;color:var(--navy);box-shadow:0 1px 4px rgba(0,0,0,.08)}
+  .seg button.on{background:var(--card);color:var(--ink);box-shadow:0 1px 4px rgba(0,0,0,.08)}
   .listrow{display:flex;align-items:center;gap:12px;padding:13px 4px;border-bottom:1px solid var(--line)}
   .ava{width:40px;height:40px;border-radius:12px;background:linear-gradient(135deg,var(--blue),var(--blue2));color:#fff;
     display:flex;align-items:center;justify-content:center;font-weight:800;font-size:15px;flex:none}
   .codebox{background:var(--navy);color:#fff;border-radius:14px;padding:16px;text-align:center}
   .codebox .c{font-size:26px;font-weight:900;letter-spacing:3px;margin-top:4px}
-  .nav{position:sticky;bottom:0;display:flex;background:#fff;border-top:1px solid var(--line);padding:6px 0 calc(env(safe-area-inset-bottom,0px) + 6px)}
-  .nav button{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;font-size:10.5px;color:#9AA6BE;font-weight:700;padding:6px 0}
+  .nav{position:sticky;bottom:0;display:flex;background:var(--card);border-top:1px solid var(--line);padding:6px 0 calc(env(safe-area-inset-bottom,0px) + 6px)}
+  .nav button{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;font-size:10.5px;color:var(--navbtn);font-weight:700;padding:6px 0}
   .nav button.on{color:var(--blue)}.nav .ic{font-size:19px}
   .toast{position:fixed;left:50%;bottom:90px;transform:translateX(-50%);background:#0B1B3Fdd;color:#fff;padding:11px 18px;
     border-radius:12px;font-size:13px;font-weight:700;z-index:100;max-width:90%}
@@ -93,6 +96,12 @@ const DEV_CODE = '413601';                // 🔧 개발자 페이지(왼쪽상�
 const rid = (p)=> p+'-'+Math.random().toString(36).slice(2,6).toUpperCase();
 // 로그아웃 아이콘(SVG) — ⏻ 문자는 모바일 폰트에 없어 깨져서 SVG로 통일
 function IcLogout(){ return <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>; }
+// 🌗 다크/라이트 토글 버튼(플로팅) — 온보딩 화면 우상단
+function ThemeFab({theme,toggleTheme}){
+  return <button onClick={toggleTheme} title="다크/라이트" style={{position:'absolute',top:'max(14px,env(safe-area-inset-top))',right:16,zIndex:40,
+    width:38,height:38,borderRadius:12,background:'var(--card)',border:'1.5px solid var(--line)',color:'var(--ink)',fontSize:16,
+    display:'flex',alignItems:'center',justifyContent:'center',boxShadow:'0 2px 8px rgba(20,40,90,.1)'}}>{theme==='dark'?'☀️':'🌙'}</button>;
+}
 
 const soon=(days)=>{const t=new Date();t.setDate(t.getDate()+days);return `${t.getFullYear()}-${String(t.getMonth()+1).padStart(2,'0')}-${String(t.getDate()).padStart(2,'0')}`};
 function demoCustomers(){
@@ -320,6 +329,13 @@ function App(){
   const flash = (m)=>{ setToast(m); setTimeout(()=>setToast(''),2200); };
   const me = db ? (db.users.find(u=>u.id===db.session) || null) : null;
 
+  // 🌗 전역 테마(기본 라이트) — <html data-theme>로 전 페이지 적용
+  const [theme,setTheme]=useState(()=>{try{return localStorage.getItem('insu_theme')||'light'}catch(e){return 'light'}});
+  useEffect(()=>{ document.documentElement.setAttribute('data-theme',theme);
+    const tc=document.querySelector('meta[name="theme-color"]'); if(tc) tc.setAttribute('content',theme==='dark'?'#0C1220':'#1F5BFF');
+    try{localStorage.setItem('insu_theme',theme)}catch(e){} },[theme]);
+  const toggleTheme=()=>setTheme(t=>t==='dark'?'light':'dark');
+
   // 부팅: 실제 Supabase 세션만 유지(새로고침 시 홈). 데모/개발자 세션은 유지 안 함(항상 랜딩부터).
   useEffect(()=>{ let alive=true; (async()=>{
     try{ const {data}=await SB.auth.getSession();
@@ -364,24 +380,26 @@ function App(){
 
   if(!db) return <div className="app"><div className="scroll" style={{display:'flex',alignItems:'center',justifyContent:'center'}}><div className="muted">불러오는 중…</div></div></div>;
 
+  const tp={theme,toggleTheme};
   let view;
-  if(route==='landing') view=<Landing go={go} onDev={onDev}/>;
-  else if(route==='login') view=<Login go={go} login={login} demoLogin={demoLogin} flash={flash}/>;
-  else if(route==='signup') view=<Signup go={go} signup={signup} flash={flash}/>;
+  if(route==='landing') view=<Landing go={go} onDev={onDev} {...tp}/>;
+  else if(route==='login') view=<Login go={go} login={login} demoLogin={demoLogin} flash={flash} {...tp}/>;
+  else if(route==='signup') view=<Signup go={go} signup={signup} flash={flash} {...tp}/>;
   else if(route==='terms') view=<Legal kind="terms" go={go}/>;
   else if(route==='privacy') view=<Legal kind="privacy" go={go}/>;
-  else if(route==='home' && me && me.role==='hq') view=<Admin db={db} me={me} logout={logout} flash={flash} commit={commit}/>;
-  else if(route==='home' && me) view=<Home db={db} me={me} logout={logout} flash={flash} commit={commit}/>;
-  else view=<Landing go={go} onDev={onDev}/>;
+  else if(route==='home' && me && me.role==='hq') view=<Admin db={db} me={me} logout={logout} flash={flash} commit={commit} {...tp}/>;
+  else if(route==='home' && me) view=<Home db={db} me={me} logout={logout} flash={flash} commit={commit} {...tp}/>;
+  else view=<Landing go={go} onDev={onDev} {...tp}/>;
 
   return <div className="app">{view}{toast&&<div className="toast">{toast}</div>}</div>;
 }
 
 /* ───────── 시작 화면 ───────── */
-function Landing({go,onDev}){
+function Landing({go,onDev,theme,toggleTheme}){
   const [tap,setTap]=useState(0);
   const hitLogo=()=>{ const n=tap+1; setTap(n); if(n>=7){ setTap(0); onDev&&onDev(); } };
-  return <div className="scroll" style={{background:'linear-gradient(180deg,#F7F9FD,#EAF0FA)'}}>
+  return <div className="scroll" style={{background:'var(--landbg)'}}>
+    <ThemeFab theme={theme} toggleTheme={toggleTheme}/>
     <div className="pad" style={{paddingTop:20}}>
       {/* 🔧 왼쪽 상단 그래프 로고 — 7번 클릭 시 개발자 페이지 */}
       <div onClick={hitLogo} style={{display:'inline-flex',alignItems:'flex-end',gap:3,height:24,marginBottom:12,cursor:'pointer',userSelect:'none'}} title="Insurance Success">
@@ -429,7 +447,7 @@ function Landing({go,onDev}){
 }
 
 /* ───────── 회원가입 (역할 + 추천인코드 + 약관) ───────── */
-function Signup({go,signup,flash}){
+function Signup({go,signup,flash,theme,toggleTheme}){
   const [step,setStep]=useState(1);
   const [role,setRole]=useState('agent');
   const [f,setF]=useState({name:'',phone:'',pw:'',ref:''});
@@ -456,6 +474,7 @@ function Signup({go,signup,flash}){
 
   const STEPS=[['역할','👤'],['정보','📝'],['약관','📄']];
   return <div className="scroll">
+    <ThemeFab theme={theme} toggleTheme={toggleTheme}/>
     <div className="top"><button className="back" onClick={()=>step===1?go('landing'):setStep(step-1)}>‹</button>
       <div style={{fontWeight:800}}>회원가입</div></div>
     <div className="pad" style={{paddingTop:6}}>
@@ -529,10 +548,11 @@ function Ck({on,set,label,onView}){
 }
 
 /* ───────── 로그인 ───────── */
-function Login({go,login,demoLogin,flash}){
+function Login({go,login,demoLogin,flash,theme,toggleTheme}){
   const [phone,setPhone]=useState(''),[pw,setPw]=useState(''),[err,setErr]=useState(''),[busy,setBusy]=useState(false);
   const submit=async()=>{ setErr(''); if(phone.length<10||!pw)return setErr('전화번호·비밀번호를 입력하세요'); setBusy(true); const res=await login(phone,pw); setBusy(false); if(res.error) setErr(res.error); };
   return <div className="scroll">
+    <ThemeFab theme={theme} toggleTheme={toggleTheme}/>
     <div className="top"><button className="back" onClick={()=>go('landing')}>‹</button><div style={{fontWeight:800}}>로그인</div></div>
     <div className="pad">
       <div className="h1" style={{fontSize:22,marginBottom:6}}>다시 오신 것을<br/>환영합니다</div>
@@ -564,7 +584,7 @@ function Legal({kind,go}){
 }
 
 /* ───────── 홈 (역할별 스코프) ───────── */
-function Home({db,me,logout,flash,commit}){
+function Home({db,me,logout,flash,commit,theme,toggleTheme}){
   const [tab,setTab]=useState('home');
   const [openCust,setOpenCust]=useState(null); // 고객 상세 id
   const [addCust,setAddCust]=useState(false);
@@ -596,7 +616,10 @@ function Home({db,me,logout,flash,commit}){
       <div className="row" style={{justifyContent:'space-between'}}>
         <div><div style={{fontWeight:900,fontSize:18}}>{me.name} <span className={'chip '+ROLE[me.role].chip}>{ROLE[me.role].label}</span></div>
           <div className="muted" style={{fontSize:12.5}}>{branch?branch.name:''}{team?' · '+team.name:''}</div></div>
-        <button className="back" onClick={logout} title="로그아웃"><IcLogout/></button>
+        <div className="row" style={{gap:8}}>
+          <button className="back" onClick={toggleTheme} title="다크/라이트">{theme==='dark'?'☀️':'🌙'}</button>
+          <button className="back" onClick={logout} title="로그아웃"><IcLogout/></button>
+        </div>
       </div>
 
       {tab==='home' && (()=>{
@@ -828,7 +851,7 @@ function Recruiting({db,me,commit,flash}){
       <div className="field" style={{marginBottom:8}}><input value={nf.name} onChange={e=>setNf({...nf,name:e.target.value})} placeholder="후보 이름"/></div>
       <div className="row" style={{gap:8}}>
         <input style={{flex:1,height:46,border:'1.5px solid var(--line)',borderRadius:11,padding:'0 12px'}} value={nf.phone} onChange={e=>setNf({...nf,phone:e.target.value})} placeholder="연락처"/>
-        <select style={{height:46,border:'1.5px solid var(--line)',borderRadius:11,padding:'0 10px',background:'#fff'}} value={nf.source} onChange={e=>setNf({...nf,source:e.target.value})}><option>지인소개</option><option>채용공고</option><option>DB</option></select></div>
+        <select style={{height:46,border:'1.5px solid var(--line)',borderRadius:11,padding:'0 10px',background:'var(--field)'}} value={nf.source} onChange={e=>setNf({...nf,source:e.target.value})}><option>지인소개</option><option>채용공고</option><option>DB</option></select></div>
       <button className="btn" style={{height:46,marginTop:10}} onClick={addRec}>등록</button></div>}
     <div className="card" style={{padding:'2px 14px'}}>
       {recs.length?recs.map(r=><div key={r.id} className="listrow">
@@ -882,13 +905,13 @@ function Members({db,me}){
 /* ───────── 관리자(본사) 페이지 ───────── */
 const DARK_VARS={'--bg':'#0C1220','--card':'#161F30','--ink':'#E9EEF7','--sub':'#8A99B4','--line':'#26324A','--soft':'#1C2740'};
 const LIGHT_VARS={'--soft':'#F5F8FF'};
-function Admin({db,me,logout,flash,commit}){
+function Admin({db,me,logout,flash,commit,theme,toggleTheme}){
   const [sec,setSec]=useState('dash');
-  const [dark,setDark]=useState(()=>{try{return localStorage.getItem('insu_dev_dark')==='1'}catch(e){return false}});
+  const dark=theme==='dark';
   const [exp,setExp]=useState(null); const [q,setQ]=useState(''); const [editUser,setEditUser]=useState(null); const [dataCat,setDataCat]=useState(null);
   const set=(patch)=>commit({...db,settings:{...db.settings,...patch}});
   const ret=(db.settings&&db.settings.docRetentionMonths)||0;
-  const toggleDark=()=>{ const v=!dark; setDark(v); try{localStorage.setItem('insu_dev_dark',v?'1':'0')}catch(e){} };
+  const toggleDark=toggleTheme;
   const vars = dark?DARK_VARS:LIGHT_VARS;
   const softBg = dark?'var(--soft)':'#F5F8FF';
 
@@ -1089,7 +1112,7 @@ function Documents({db,me,scopeUsers,commit,flash}){
 
     <div className="card" style={{padding:'2px 14px'}}>
       {list.length?list.map(d=><div key={d.id} className="listrow">
-        <div style={{width:38,height:38,borderRadius:11,background:'#EEF3FB',display:'flex',alignItems:'center',justifyContent:'center',fontSize:18,flex:'none'}}>{icon(d.type)}</div>
+        <div style={{width:38,height:38,borderRadius:11,background:'var(--soft)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:18,flex:'none'}}>{icon(d.type)}</div>
         <div style={{flex:1,minWidth:0}}>
           <div style={{fontWeight:700,fontSize:13.5,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{d.name}</div>
           <div className="muted" style={{fontSize:11}}>{custName(d.customerId)?custName(d.customerId)+' · ':''}<span className="chip tag-team" style={{padding:'1px 6px',fontSize:9.5}}>{d.type}</span> {d.date}</div></div>
@@ -1130,7 +1153,7 @@ function Claims({db,me,scopeUsers,commit,flash}){
             <div style={{fontSize:9.5,marginTop:3,color:i<=si?'var(--blue)':'var(--sub)',fontWeight:i===si?800:600}}>{s}</div></div>)}
         </div>
 
-        <div style={{background:'#F5F8FF',borderRadius:12,padding:12}}>
+        <div style={{background:'var(--soft)',borderRadius:12,padding:12}}>
           <div style={{fontWeight:800,fontSize:12.5,marginBottom:6}}>📋 필요서류 {cl.amount>=50?'(50만원↑ · 진단서 필수)':'(50만원↓ · 입퇴원확인서로 대체 가능)'}</div>
           {req.map(d=><div key={d} className="row" onClick={()=>toggleDoc(cl,d)} style={{padding:'5px 0'}}>
             <div style={{width:20,height:20,borderRadius:6,border:'2px solid '+(cl.docs[d]?'#12A150':'#CBD5E8'),background:cl.docs[d]?'#12A150':'#fff',color:'#fff',display:'flex',alignItems:'center',justifyContent:'center',fontSize:12,flex:'none'}}>{cl.docs[d]?'✓':''}</div>
@@ -1168,10 +1191,10 @@ function Promotion({db,me,scopeUsers}){
           <div className="row" style={{justifyContent:'space-between',marginBottom:4}}>
             <span style={{fontSize:13,fontWeight:700}}>{r.label}</span>
             <span style={{fontSize:12,fontWeight:800,color:r.ok?'#12A150':'#C97A00'}}>{r.ape?won(r.val):r.val+r.unit} / {r.ape?won(r.req):r.req+r.unit} {r.ok?'✓':''}</span></div>
-          <div style={{height:8,borderRadius:5,background:'#EEF2F8',overflow:'hidden'}}>
+          <div style={{height:8,borderRadius:5,background:'var(--track)',overflow:'hidden'}}>
             <div style={{height:'100%',width:r.pct+'%',borderRadius:5,background:r.ok?'#12A150':'linear-gradient(90deg,#1F5BFF,#38A4FF)',transition:'width .6s'}}/></div></div>)}
       </div>
-      <div className="card" style={{background:'#F5F8FF',marginTop:6}}>
+      <div className="card" style={{background:'var(--soft)',marginTop:6}}>
         <div style={{fontWeight:800,fontSize:13}}>🔮 승급 시뮬레이터</div>
         <div className="muted" style={{fontSize:12,marginTop:3}}>{ready?'모든 요건 충족 — 이번 달 승급 대상입니다! 🎉':apeShort>0?`이번 달 APE ${won(apeShort)} 더 달성하면 승급에 가까워집니다.`:'유지율·리쿠르팅 요건을 채우면 승급합니다.'}</div></div>
     </div> : <div className="card" style={{marginTop:14}}><div className="muted">최고 등급입니다 💎</div></div>}
@@ -1186,7 +1209,7 @@ function Promotion({db,me,scopeUsers}){
             <div className="ava">{u.name[0]}</div>
             <div style={{flex:1}}>
               <div style={{fontWeight:700,fontSize:13.5}}>{u.name} <span className="muted" style={{fontSize:11}}>{GRADES[uci].emoji}{GRADES[uci].name}</span></div>
-              <div style={{height:6,borderRadius:3,background:'#EEF2F8',overflow:'hidden',marginTop:4}}>
+              <div style={{height:6,borderRadius:3,background:'var(--track)',overflow:'hidden',marginTop:4}}>
                 <div style={{height:'100%',width:pct+'%',background:pct>=100?'#12A150':'linear-gradient(90deg,#1F5BFF,#38A4FF)'}}/></div></div>
             {risk?<span className="chip" style={{background:'#E23B4E1A',color:'#E23B4E',fontSize:10}}>자격 위험</span>:pct>=100?<span className="chip tag-team" style={{fontSize:10}}>승급임박</span>:<span style={{fontSize:12,fontWeight:800,color:'var(--blue)'}}>{pct}%</span>}
           </div>;})}
@@ -1229,7 +1252,7 @@ function Performance({db,me,scopeUsers}){
     {/* 목표 달성률 */}
     <div className="card" style={{marginTop:14}}>
       <div className="row" style={{justifyContent:'space-between'}}><b>목표 달성률</b><span style={{fontWeight:900,color:'var(--blue)'}}>{rate}%</span></div>
-      <div style={{height:10,borderRadius:6,background:'#EEF2F8',overflow:'hidden',margin:'10px 0 6px'}}>
+      <div style={{height:10,borderRadius:6,background:'var(--track)',overflow:'hidden',margin:'10px 0 6px'}}>
         <div style={{height:'100%',width:rate+'%',borderRadius:6,background:'linear-gradient(90deg,#1F5BFF,#38A4FF)',transition:'width .6s'}}/></div>
       <div className="muted" style={{fontSize:12}}>{won(ape)} / 목표 {won(goal)} · {ape>=goal?'목표 달성! 🎉':'목표까지 '+won(goal-ape)}</div>
     </div>
@@ -1271,7 +1294,7 @@ function Performance({db,me,scopeUsers}){
           <div className="row" style={{justifyContent:'space-between',marginBottom:4}}>
             <div style={{fontWeight:700,fontSize:13.5}}>{['🥇','🥈','🥉'][i]||(i+1+'.')} {r.u.name}</div>
             <div style={{fontSize:12,fontWeight:800}}>{won(r.ape)} · {r.cnt}건</div></div>
-          <div style={{height:7,borderRadius:4,background:'#EEF2F8',overflow:'hidden'}}>
+          <div style={{height:7,borderRadius:4,background:'var(--track)',overflow:'hidden'}}>
             <div style={{height:'100%',width:(r.ape/rmax*100)+'%',borderRadius:4,background:'linear-gradient(90deg,#1F5BFF,#38A4FF)'}}/></div>
         </div>)}
         {rank.length===0 && <div className="muted">설계사 실적이 없습니다.</div>}
@@ -1295,7 +1318,7 @@ function Community({db,me,commit,flash}){
   if(write) return <div style={{marginTop:16}}>
     <div className="row" style={{justifyContent:'space-between',marginBottom:14}}>
       <div style={{fontWeight:900,fontSize:17}}>✍️ 글쓰기</div>
-      <button className="chip" style={{background:'#EDF1F8',color:'var(--sub)'}} onClick={()=>setWrite(false)}>취소</button></div>
+      <button className="chip" style={{background:'var(--seg)',color:'var(--sub)'}} onClick={()=>setWrite(false)}>취소</button></div>
     <div className="field"><label>카테고리</label>
       <select value={f.cat} onChange={e=>setF({...f,cat:e.target.value})}>
         {POST_CATS.filter(c=>c!=='공지'||canNotice).map(c=><option key={c}>{c}</option>)}</select></div>
