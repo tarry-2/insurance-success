@@ -105,19 +105,22 @@ function seed(){
     if(!d.recruits){d.recruits=demoRecruits();ch=true;}
     if(!d.claims){d.claims=demoClaims();ch=true;}
     if(!d.docs){d.docs=demoDocs();ch=true;}
-    if(!d.settings){d.settings={docRetentionMonths:0};ch=true;} // 0=무제한 보관
+    if(!d.settings){d.settings={docRetentionMonths:0,commissionRate:35};ch=true;} // 0=무제한 보관
+    if(d.settings&&d.settings.commissionRate==null){d.settings.commissionRate=35;ch=true;}
+    if(!(d.users||[]).some(u=>u.role==='hq')){d.users.unshift({id:'u0',name:'본사관리자',phone:'01000000000',pw:'1234',role:'hq',branchId:null,teamId:null,recruiterId:null,code:'HQ2026',consent:c(),createdAt:Date.now()});ch=true;}
     (d.users||[]).forEach(u=>{ if(u.role!=='branch'&&u.goalApe==null){u.goalApe=300;ch=true;}
       if(!u.grade){u.grade=u.role==='branch'?'PLAT':u.role==='team'?'GOLD':'FC';ch=true;} });
     if(ch)DB.save(d); return d; } // 마이그레이션
   const branch = {id:'b1', name:'강남지점', code:'GN-1A2B', managerId:'u1'};
   const team   = {id:'t1', branchId:'b1', name:'1팀', code:'TM-3C4D', leaderId:'u2'};
   const users = [
+    {id:'u0', name:'본사관리자', phone:'01000000000', pw:'1234', role:'hq', branchId:null, teamId:null, recruiterId:null, code:'HQ2026', consent:c(), createdAt:Date.now()},
     {id:'u1', name:'김지점', phone:'01011110000', pw:'1234', role:'branch', branchId:'b1', teamId:null, recruiterId:null, code:'GN-1A2B', grade:'PLAT', consent:c(), createdAt:Date.now()},
     {id:'u2', name:'이팀장', phone:'01022220000', pw:'1234', role:'team',   branchId:'b1', teamId:'t1', recruiterId:'u1', code:'TM-3C4D', goalApe:300, grade:'GOLD', consent:c(), createdAt:Date.now()},
     {id:'u3', name:'박설계', phone:'01033330000', pw:'1234', role:'agent',  branchId:'b1', teamId:'t1', recruiterId:'u2', code:null, goalApe:300, grade:'SFC', consent:c(), createdAt:Date.now()},
     {id:'u4', name:'최설계', phone:'01044440000', pw:'1234', role:'agent',  branchId:'b1', teamId:'t1', recruiterId:'u2', code:null, goalApe:200, grade:'FC', consent:c(), createdAt:Date.now()},
   ];
-  const db = {branches:[branch], teams:[team], users, customers:demoCustomers(), sales:demoSales(), recruits:demoRecruits(), claims:demoClaims(), docs:demoDocs(), settings:{docRetentionMonths:0}, session:null};
+  const db = {branches:[branch], teams:[team], users, customers:demoCustomers(), sales:demoSales(), recruits:demoRecruits(), claims:demoClaims(), docs:demoDocs(), settings:{docRetentionMonths:0,commissionRate:35}, session:null};
   DB.save(db); return db;
 }
 function c(){ return {tos:true,privacy:true,marketing:false,at:Date.now()} }
@@ -231,6 +234,7 @@ function demoDocs(){
 }
 
 const ROLE = {
+  hq:    {label:'본사 관리자', chip:'tag-branch', ic:'🏛️', d:'지점·팀·계정 전체 통제'},
   branch:{label:'지점장', chip:'tag-branch', ic:'🏢', d:'팀·설계사 전체 관리'},
   team:  {label:'팀장',   chip:'tag-team',   ic:'👔', d:'팀원 관리 + 본인 실적'},
   agent: {label:'설계사', chip:'tag-agent',  ic:'🧑‍💼',d:'본인 고객·실적'},
@@ -255,6 +259,7 @@ function App(){
   else if(route==='signup') view=<Signup db={db} commit={commit} go={go} login={login} flash={flash}/>;
   else if(route==='terms') view=<Legal kind="terms" go={go}/>;
   else if(route==='privacy') view=<Legal kind="privacy" go={go}/>;
+  else if(route==='home' && me && me.role==='hq') view=<Admin db={db} me={me} logout={logout} flash={flash} commit={commit}/>;
   else if(route==='home' && me) view=<Home db={db} me={me} logout={logout} flash={flash} commit={commit}/>;
   else view=<Landing go={go}/>;
 
@@ -395,9 +400,10 @@ function Login({db,go,login,flash}){
       <button className="btn" onClick={submit}>로그인</button>
       <div style={{textAlign:'center',margin:'18px 0',color:'#9AA6BE',fontSize:12}}>— 데모 계정으로 둘러보기 —</div>
       <div className="row" style={{gap:8}}>
-        <button className="btn ghost" style={{height:44,fontSize:13}} onClick={()=>demo('branch')}>지점장</button>
-        <button className="btn ghost" style={{height:44,fontSize:13}} onClick={()=>demo('team')}>팀장</button>
-        <button className="btn ghost" style={{height:44,fontSize:13}} onClick={()=>demo('agent')}>설계사</button>
+        <button className="btn ghost" style={{height:44,fontSize:12.5}} onClick={()=>demo('hq')}>본사</button>
+        <button className="btn ghost" style={{height:44,fontSize:12.5}} onClick={()=>demo('branch')}>지점장</button>
+        <button className="btn ghost" style={{height:44,fontSize:12.5}} onClick={()=>demo('team')}>팀장</button>
+        <button className="btn ghost" style={{height:44,fontSize:12.5}} onClick={()=>demo('agent')}>설계사</button>
       </div>
       <div style={{textAlign:'center',marginTop:18,fontSize:13,color:'var(--sub)'}}>아직 계정이 없으신가요? <span className="link" onClick={()=>go('signup')}>회원가입</span></div>
     </div>
@@ -731,6 +737,95 @@ function Members({db,me}){
     </div>}
   </div>;
 }
+/* ───────── 관리자(본사) 페이지 ───────── */
+function Admin({db,me,logout,flash,commit}){
+  const [sec,setSec]=useState('org');
+  const [exp,setExp]=useState(null); const [q,setQ]=useState('');
+  const agentsOfBranch=(bid)=>db.users.filter(u=>u.role==='agent'&&u.branchId===bid);
+  const branchApe=(bid)=>{const ids=db.users.filter(u=>u.branchId===bid).map(u=>u.id);return db.sales.filter(s=>ids.includes(s.agentId)&&s.month===monthKey(0)).reduce((a,s)=>a+s.ape,0);};
+  const branchRet=(bid)=>{const ids=db.users.filter(u=>u.branchId===bid).map(u=>u.id);const cts=db.customers.filter(c=>ids.includes(c.ownerId)).flatMap(c=>c.contracts||[]);return cts.length?Math.round(cts.filter(x=>x.status==='정상').length/cts.length*100):100;};
+  const set=(patch)=>commit({...db,settings:{...db.settings,...patch}});
+  const ret=(db.settings&&db.settings.docRetentionMonths)||0;
+  const users=db.users.filter(u=>!q||u.name.includes(q)||ROLE[u.role].label.includes(q));
+
+  return <div className="scroll" style={{paddingBottom:0,minHeight:'100dvh',display:'flex',flexDirection:'column'}}>
+    <div className="pad" style={{flex:1,overflowY:'auto'}}>
+      <div className="row" style={{justifyContent:'space-between'}}>
+        <div><div style={{fontWeight:900,fontSize:18}}>{me.name} <span className="chip tag-branch">본사 관리자</span></div>
+          <div className="muted" style={{fontSize:12.5}}>인슈런스 석세스 · 본사 관제</div></div>
+        <button className="back" onClick={logout} title="로그아웃">⏻</button></div>
+
+      {sec==='org' && <div style={{marginTop:16}}>
+        <div className="row" style={{gap:10}}>
+          <div className="stat"><div className="v">{db.branches.length}</div><div className="l">지점</div></div>
+          <div className="stat"><div className="v">{db.teams.length}</div><div className="l">팀</div></div>
+          <div className="stat"><div className="v">{db.users.filter(u=>u.role==='agent').length}</div><div className="l">설계사</div></div>
+        </div>
+        <div style={{fontWeight:900,margin:'16px 0 8px'}}>지점 현황</div>
+        {db.branches.map(b=>{const teams=db.teams.filter(t=>t.branchId===b.id);const mgr=db.users.find(u=>u.id===b.managerId);
+          return <div key={b.id} className="card" style={{marginBottom:10}}>
+            <div className="row" style={{justifyContent:'space-between'}} onClick={()=>setExp(exp===b.id?null:b.id)}>
+              <div><b>{b.name}</b> <span className="muted" style={{fontSize:11.5}}>지점장 {mgr?mgr.name:'-'} · 코드 {b.code}</span></div>
+              <span style={{color:'var(--blue)'}}>{exp===b.id?'▲':'▼'}</span></div>
+            <div className="row" style={{gap:8,marginTop:10}}>
+              <div style={{flex:1,textAlign:'center',background:'#F5F8FF',borderRadius:10,padding:'8px 4px'}}><div style={{fontWeight:800}}>{agentsOfBranch(b.id).length}</div><div className="muted" style={{fontSize:10}}>설계사</div></div>
+              <div style={{flex:1,textAlign:'center',background:'#F5F8FF',borderRadius:10,padding:'8px 4px'}}><div style={{fontWeight:800}}>{won(branchApe(b.id))}</div><div className="muted" style={{fontSize:10}}>월 APE</div></div>
+              <div style={{flex:1,textAlign:'center',background:'#F5F8FF',borderRadius:10,padding:'8px 4px'}}><div style={{fontWeight:800,color:branchRet(b.id)<80?'#E23B4E':'#12A150'}}>{branchRet(b.id)}%</div><div className="muted" style={{fontSize:10}}>유지율</div></div></div>
+            {exp===b.id && <div style={{marginTop:10}}>{teams.map(t=>{const lead=db.users.find(u=>u.id===t.leaderId);
+              return <div key={t.id} className="listrow"><div className="ava" style={{width:34,height:34,fontSize:13}}>{t.name[0]}</div>
+                <div style={{flex:1}}><div style={{fontWeight:700,fontSize:13}}>{t.name} <span className="muted" style={{fontSize:11}}>팀장 {lead?lead.name:'-'} · {db.users.filter(u=>u.role==='agent'&&u.teamId===t.id).length}명</span></div></div></div>;})}
+              {teams.length===0&&<div className="muted" style={{fontSize:12}}>팀 없음</div>}</div>}
+          </div>;})}
+      </div>}
+
+      {sec==='acct' && <div style={{marginTop:16}}>
+        <div style={{fontWeight:900,marginBottom:8}}>계정 관리 ({db.users.length})</div>
+        <div className="field"><input value={q} onChange={e=>setQ(e.target.value)} placeholder="이름·역할 검색"/></div>
+        <div className="card" style={{padding:'2px 14px'}}>
+          {users.map(u=>{const b=db.branches.find(x=>x.id===u.branchId);const t=db.teams.find(x=>x.id===u.teamId);
+            return <div key={u.id} className="listrow"><div className="ava">{u.name[0]}</div>
+              <div style={{flex:1}}><div style={{fontWeight:700,fontSize:13.5}}>{u.name} <span className={'chip '+ROLE[u.role].chip} style={{fontSize:10}}>{ROLE[u.role].label}</span></div>
+                <div className="muted" style={{fontSize:11}}>{b?b.name:'본사'}{t?' · '+t.name:''}{u.code?' · '+u.code:''}</div></div></div>;})}
+        </div>
+      </div>}
+
+      {sec==='set' && <div style={{marginTop:16}}>
+        <div className="card">
+          <b>🗂️ 자료 보관기간</b>
+          <div className="muted" style={{fontSize:11.5,margin:'4px 0 10px'}}>기본 무제한. 용량·비용 관리를 위해 기간을 두면 지난 자료는 자동 아카이브(법정 보관기간 준수).</div>
+          <div style={{display:'flex',flexWrap:'wrap',gap:8}}>
+            {[[0,'무제한'],[12,'1년'],[24,'2년'],[36,'3년'],[60,'5년']].map(([v,l])=>
+              <button key={v} className="chip" onClick={()=>set({docRetentionMonths:v})}
+                style={{background:ret===v?'var(--navy)':'#EDF1F8',color:ret===v?'#fff':'var(--sub)',padding:'8px 14px'}}>{l}</button>)}</div>
+        </div>
+        <div className="card" style={{marginTop:12}}>
+          <b>💰 기본 수수료율</b>
+          <div className="row" style={{gap:10,marginTop:10,alignItems:'center'}}>
+            <input type="number" value={db.settings.commissionRate} onChange={e=>set({commissionRate:+e.target.value||0})}
+              style={{width:90,height:46,border:'1.5px solid var(--line)',borderRadius:11,padding:'0 12px',textAlign:'center',fontWeight:800}}/>
+            <span style={{fontWeight:800}}>%</span>
+            <span className="muted" style={{fontSize:12}}>APE 대비 수수료 환산 기준</span></div>
+        </div>
+        <div className="card" style={{marginTop:12}}>
+          <b>🏅 직급 규정</b>
+          <div style={{marginTop:8}}>{GRADES.slice(1).map(g=><div key={g.key} className="listrow">
+            <div style={{flex:1,fontWeight:700,fontSize:13}}>{g.emoji} {g.name}</div>
+            <div className="muted" style={{fontSize:11}}>APE {won(g.req.ape)} · 유지 {g.req.ret}%{g.req.rec?' · 정착 '+g.req.rec:''}</div></div>)}</div>
+          <div className="muted" style={{fontSize:11,marginTop:6}}>ⓘ 요건 수치 편집은 백엔드 연결 후</div>
+        </div>
+        <div style={{height:14}}/>
+        <button className="btn ghost" onClick={logout}>로그아웃</button>
+      </div>}
+    </div>
+
+    <div className="nav">
+      <button className={sec==='org'?'on':''} onClick={()=>setSec('org')}><span className="ic">🏢</span>조직</button>
+      <button className={sec==='acct'?'on':''} onClick={()=>setSec('acct')}><span className="ic">👤</span>계정</button>
+      <button className={sec==='set'?'on':''} onClick={()=>setSec('set')}><span className="ic">⚙️</span>설정</button>
+    </div>
+  </div>;
+}
+
 /* ───────── 자료 보관함 (기간별 저장·검색 + 카카오톡 전송) ───────── */
 function Documents({db,me,scopeUsers,commit,flash}){
   const [q,setQ]=useState(''); const [period,setPeriod]=useState('전체'); const fileRef=React.useRef();
