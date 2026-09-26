@@ -10,7 +10,10 @@
 <link rel="preconnect" href="https://cdn.jsdelivr.net">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
 <style>
-  *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;
+    -webkit-touch-callout:none;-webkit-user-select:none;user-select:none;-webkit-user-drag:none}
+  input,textarea,select,[contenteditable]{-webkit-user-select:text;user-select:text}
+  img,video{-webkit-user-drag:none;user-drag:none}
   :root{--navy:#0B1B3F;--blue:#1F5BFF;--blue2:#38A4FF;--ink:#0B1B3F;--sub:#5B6781;--line:#E4EAF3;--bg:#F4F7FC;--card:#fff;
     --field:#fff;--soft:#F5F8FF;--seg:#EDF1F8;--track:#EEF2F8;--legal:#3A4763;--navbtn:#9AA6BE;--landbg:linear-gradient(180deg,#F7F9FD,#EAF0FA)}
   [data-theme="dark"]{--navy:#0B1220;--ink:#E9EEF7;--sub:#8A99B4;--line:#26324A;--bg:#0C1220;--card:#161F30;
@@ -352,6 +355,11 @@ function App(){
   const [toast,setToast] = useState('');
   const flash = (m)=>{ setToast(m); setTimeout(()=>setToast(''),2200); };
   const me = db ? (db.users.find(u=>u.id===db.session) || null) : null;
+
+  // 🚫 롱프레스/우클릭 시 뜨는 공유·저장(컨텍스트 메뉴) 차단 — 입력창은 예외
+  useEffect(()=>{ const block=(e)=>{ const t=e.target; if(t&&/^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName)||(t&&t.isContentEditable)) return; e.preventDefault(); };
+    document.addEventListener('contextmenu',block); document.addEventListener('dragstart',block);
+    return ()=>{ document.removeEventListener('contextmenu',block); document.removeEventListener('dragstart',block); }; },[]);
 
   // 🌗 전역 테마(기본 라이트) — <html data-theme>로 전 페이지 적용
   const [theme,setTheme]=useState(()=>{try{return localStorage.getItem('insu_theme')||'light'}catch(e){return 'light'}});
