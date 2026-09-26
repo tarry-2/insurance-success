@@ -104,6 +104,8 @@ function seed(){
   if(d){ let ch=false; if(!d.customers){d.customers=demoCustomers();ch=true;} if(!d.sales){d.sales=demoSales();ch=true;}
     if(!d.recruits){d.recruits=demoRecruits();ch=true;}
     if(!d.claims){d.claims=demoClaims();ch=true;}
+    if(!d.docs){d.docs=demoDocs();ch=true;}
+    if(!d.settings){d.settings={docRetentionMonths:0};ch=true;} // 0=무제한 보관
     (d.users||[]).forEach(u=>{ if(u.role!=='branch'&&u.goalApe==null){u.goalApe=300;ch=true;}
       if(!u.grade){u.grade=u.role==='branch'?'PLAT':u.role==='team'?'GOLD':'FC';ch=true;} });
     if(ch)DB.save(d); return d; } // 마이그레이션
@@ -115,7 +117,7 @@ function seed(){
     {id:'u3', name:'박설계', phone:'01033330000', pw:'1234', role:'agent',  branchId:'b1', teamId:'t1', recruiterId:'u2', code:null, goalApe:300, grade:'SFC', consent:c(), createdAt:Date.now()},
     {id:'u4', name:'최설계', phone:'01044440000', pw:'1234', role:'agent',  branchId:'b1', teamId:'t1', recruiterId:'u2', code:null, goalApe:200, grade:'FC', consent:c(), createdAt:Date.now()},
   ];
-  const db = {branches:[branch], teams:[team], users, customers:demoCustomers(), sales:demoSales(), recruits:demoRecruits(), claims:demoClaims(), session:null};
+  const db = {branches:[branch], teams:[team], users, customers:demoCustomers(), sales:demoSales(), recruits:demoRecruits(), claims:demoClaims(), docs:demoDocs(), settings:{docRetentionMonths:0}, session:null};
   DB.save(db); return db;
 }
 function c(){ return {tos:true,privacy:true,marketing:false,at:Date.now()} }
@@ -214,6 +216,17 @@ function demoClaims(){
       docs:{진단서:true,진료비내역:true,영수증:false},status:'서류준비'},
     {id:'cl2',customerId:'c1',ownerId:'u3',type:'통원',hospital:'강남내과',admitDate:soon(-10),dischargeDate:soon(-10),amount:35,
       docs:{입퇴원확인서:true,진료비내역:true,영수증:true},status:'접수'},
+  ];
+}
+
+/* ───────── 자료 보관함(docs) 데모 ───────── */
+const DOC_TYPES=['진단서','입퇴원확인서','진료비영수증','진료비세부내역서','보장분석표','증권','기타'];
+function demoDocs(){
+  return [
+    {id:'dc1',customerId:'c4',ownerId:'u3',type:'진단서',name:'정민철_무릎수술_진단서.pdf',date:soon(-3),size:0,dataUrl:''},
+    {id:'dc2',customerId:'c4',ownerId:'u3',type:'진료비영수증',name:'정민철_영수증.jpg',date:soon(-3),size:0,dataUrl:''},
+    {id:'dc3',customerId:'c1',ownerId:'u3',type:'입퇴원확인서',name:'김영희_입퇴원확인서.pdf',date:'2026-08-20',size:0,dataUrl:''},
+    {id:'dc4',customerId:'c2',ownerId:'u3',type:'보장분석표',name:'박준호_보장분석.pdf',date:'2026-07-12',size:0,dataUrl:''},
   ];
 }
 
@@ -484,6 +497,8 @@ function Home({db,me,logout,flash,commit}){
 
       {tab==='claims' && <Claims db={db} me={me} scopeUsers={scopeUsers} commit={commit} flash={flash}/>}
 
+      {tab==='docs' && <Documents db={db} me={me} scopeUsers={scopeUsers} commit={commit} flash={flash}/>}
+
       {tab==='org' && <OrgView db={db} me={me} commit={commit} flash={flash}/>}
 
       {tab==='community' && <Community/>}
@@ -491,6 +506,7 @@ function Home({db,me,logout,flash,commit}){
       {tab==='more' && <div style={{marginTop:16}}>
         <div className="card" style={{padding:'2px 16px'}}>
           <div className="listrow" onClick={()=>setTab('claims')}><div style={{flex:1,fontWeight:700}}>🏥 병원 · 실손청구</div><span style={{color:'var(--blue)',fontWeight:800}}>›</span></div>
+          <div className="listrow" onClick={()=>setTab('docs')}><div style={{flex:1,fontWeight:700}}>🗂️ 자료 보관함</div><span style={{color:'var(--blue)',fontWeight:800}}>›</span></div>
           <div className="listrow" onClick={()=>setTab('promotion')}><div style={{flex:1,fontWeight:700}}>🏅 승급 · 직급</div><span style={{color:'var(--blue)',fontWeight:800}}>›</span></div>
           <div className="listrow" onClick={()=>setTab('community')}><div style={{flex:1,fontWeight:700}}>📚 커뮤니티 · 자료실</div><span style={{color:'var(--blue)',fontWeight:800}}>›</span></div>
           <div className="listrow" style={{borderBottom:'none'}}><div style={{flex:1,fontWeight:700}}>내 추천인 코드</div><b>{me.code||'—'}</b></div>
@@ -715,6 +731,60 @@ function Members({db,me}){
     </div>}
   </div>;
 }
+/* ───────── 자료 보관함 (기간별 저장·검색 + 카카오톡 전송) ───────── */
+function Documents({db,me,scopeUsers,commit,flash}){
+  const [q,setQ]=useState(''); const [period,setPeriod]=useState('전체'); const fileRef=React.useRef();
+  const custName=(id)=>(db.customers.find(c=>c.id===id)||{}).name||'';
+  const retention=(db.settings&&db.settings.docRetentionMonths)||0;
+  const docs=db.docs.filter(d=>scopeUsers.some(u=>u.id===d.ownerId));
+  const inPeriod=(d)=>{ if(period==='전체')return true; const mk=d.date.slice(0,7);
+    if(period==='이번달')return mk===monthKey(0); if(period==='지난달')return mk===monthKey(1);
+    if(period==='올해')return d.date.slice(0,4)===String(new Date().getFullYear()); return true; };
+  const list=docs.filter(d=>inPeriod(d)&&(!q||custName(d.customerId).includes(q)||d.name.includes(q)||d.type.includes(q)))
+    .sort((a,b)=>b.date.localeCompare(a.date));
+
+  const onFile=(e)=>{ const f=e.target.files[0]; if(!f)return;
+    const add=(dataUrl)=> commit({...db,docs:[...db.docs,{id:'D'+Date.now(),customerId:'',ownerId:me.id,
+      type:'기타',name:f.name,date:new Date().toISOString().slice(0,10),size:f.size,dataUrl:dataUrl||''}]});
+    if(f.size>800*1024){ add(''); flash('메타데이터만 저장(용량 큰 파일은 백엔드 연결 후 실보관)'); }
+    else { const r=new FileReader(); r.onload=()=>{add(r.result);flash('자료 저장됨 ✓');}; r.readAsDataURL(f); }
+    e.target.value=''; };
+  const saveFile=(d)=>{ if(d.dataUrl){const a=document.createElement('a');a.href=d.dataUrl;a.download=d.name;a.click();} else flash('데모 자료(원본 파일은 백엔드 연결 후)'); };
+  const kakao=async(d)=>{ const text=`[인슈런스 석세스] ${custName(d.customerId)||''} ${d.type} · ${d.date}\n${d.name}`;
+    try{ if(d.dataUrl&&navigator.canShare){ const blob=await(await fetch(d.dataUrl)).blob(); const file=new File([blob],d.name,{type:blob.type});
+        if(navigator.canShare({files:[file]})){ await navigator.share({files:[file],text,title:d.name}); return; } }
+      if(navigator.share){ await navigator.share({title:d.name,text}); return; } }catch(e){ if(e.name==='AbortError')return; }
+    try{ await navigator.clipboard.writeText(text); flash('내용 복사됨 · 카카오톡은 모바일에서 공유돼요'); }catch(_){ flash('카카오톡 공유는 모바일에서 지원돼요'); } };
+  const icon=(t)=> t.includes('영수증')?'🧾':t.includes('진단')?'📄':t.includes('확인서')?'📑':t.includes('증권')?'📋':t.includes('분석')?'📊':'📁';
+
+  return <div style={{marginTop:16}}>
+    <div className="row" style={{justifyContent:'space-between'}}>
+      <div style={{fontWeight:900,fontSize:17}}>🗂️ 자료 보관함</div>
+      <span className="chip" style={{background:retention?'#FFF3E0':'#E9FBF1',color:retention?'#C97A00':'#12A150',fontSize:10.5}}>보관 {retention?retention+'개월':'무제한'}</span></div>
+    <div className="muted" style={{fontSize:11.5,margin:'4px 0 12px'}}>진단서·영수증 등 자료를 기간별로 보관하고 카카오톡으로 전송하세요.</div>
+
+    <div style={{display:'flex',gap:7,overflowX:'auto',paddingBottom:8}}>
+      {['전체','이번달','지난달','올해'].map(p=><button key={p} className="chip" onClick={()=>setPeriod(p)}
+        style={{whiteSpace:'nowrap',background:period===p?'var(--navy)':'#EDF1F8',color:period===p?'#fff':'var(--sub)'}}>{p}</button>)}
+    </div>
+    <div className="field"><input value={q} onChange={e=>setQ(e.target.value)} placeholder="고객·서류명·종류 검색"/></div>
+    <input ref={fileRef} type="file" accept="image/*,application/pdf" style={{display:'none'}} onChange={onFile}/>
+    <button className="btn" style={{height:46,marginBottom:12}} onClick={()=>fileRef.current&&fileRef.current.click()}>＋ 자료 첨부·저장</button>
+
+    <div className="card" style={{padding:'2px 14px'}}>
+      {list.length?list.map(d=><div key={d.id} className="listrow">
+        <div style={{width:38,height:38,borderRadius:11,background:'#EEF3FB',display:'flex',alignItems:'center',justifyContent:'center',fontSize:18,flex:'none'}}>{icon(d.type)}</div>
+        <div style={{flex:1,minWidth:0}}>
+          <div style={{fontWeight:700,fontSize:13.5,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{d.name}</div>
+          <div className="muted" style={{fontSize:11}}>{custName(d.customerId)?custName(d.customerId)+' · ':''}<span className="chip tag-team" style={{padding:'1px 6px',fontSize:9.5}}>{d.type}</span> {d.date}</div></div>
+        <button onClick={()=>saveFile(d)} title="저장" style={{fontSize:17,padding:'4px'}}>⬇️</button>
+        <button onClick={()=>kakao(d)} title="카카오톡 전송" style={{fontSize:17,padding:'4px'}}>💬</button>
+      </div>):<div className="muted" style={{padding:'14px 0'}}>해당 기간에 자료가 없습니다.</div>}
+    </div>
+    <div className="muted" style={{textAlign:'center',fontSize:11,marginTop:10}}>ⓘ 무제한 보관 · 실파일 저장/카톡 실전송은 백엔드(Storage·Kakao SDK) 연결 후 · 보관기간은 관리자에서 설정</div>
+  </div>;
+}
+
 /* ───────── 병원 · 실손청구 관리 ───────── */
 function Claims({db,me,scopeUsers,commit,flash}){
   const claims=db.claims.filter(cl=>scopeUsers.some(u=>u.id===cl.ownerId));
