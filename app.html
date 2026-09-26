@@ -105,6 +105,7 @@ function seed(){
     if(!d.recruits){d.recruits=demoRecruits();ch=true;}
     if(!d.claims){d.claims=demoClaims();ch=true;}
     if(!d.docs){d.docs=demoDocs();ch=true;}
+    if(!d.posts){d.posts=demoPosts();ch=true;}
     if(!d.settings){d.settings={docRetentionMonths:0,commissionRate:35};ch=true;} // 0=무제한 보관
     if(d.settings&&d.settings.commissionRate==null){d.settings.commissionRate=35;ch=true;}
     if(!(d.users||[]).some(u=>u.role==='hq')){d.users.unshift({id:'u0',name:'본사관리자',phone:'01000000000',pw:'1234',role:'hq',branchId:null,teamId:null,recruiterId:null,code:'HQ2026',consent:c(),createdAt:Date.now()});ch=true;}
@@ -120,7 +121,7 @@ function seed(){
     {id:'u3', name:'박설계', phone:'01033330000', pw:'1234', role:'agent',  branchId:'b1', teamId:'t1', recruiterId:'u2', code:null, goalApe:300, grade:'SFC', consent:c(), createdAt:Date.now()},
     {id:'u4', name:'최설계', phone:'01044440000', pw:'1234', role:'agent',  branchId:'b1', teamId:'t1', recruiterId:'u2', code:null, goalApe:200, grade:'FC', consent:c(), createdAt:Date.now()},
   ];
-  const db = {branches:[branch], teams:[team], users, customers:demoCustomers(), sales:demoSales(), recruits:demoRecruits(), claims:demoClaims(), docs:demoDocs(), settings:{docRetentionMonths:0,commissionRate:35}, session:null};
+  const db = {branches:[branch], teams:[team], users, customers:demoCustomers(), sales:demoSales(), recruits:demoRecruits(), claims:demoClaims(), docs:demoDocs(), posts:demoPosts(), settings:{docRetentionMonths:0,commissionRate:35}, session:null};
   DB.save(db); return db;
 }
 function c(){ return {tos:true,privacy:true,marketing:false,at:Date.now()} }
@@ -230,6 +231,18 @@ function demoDocs(){
     {id:'dc2',customerId:'c4',ownerId:'u3',type:'진료비영수증',name:'정민철_영수증.jpg',date:soon(-3),size:0,dataUrl:''},
     {id:'dc3',customerId:'c1',ownerId:'u3',type:'입퇴원확인서',name:'김영희_입퇴원확인서.pdf',date:'2026-08-20',size:0,dataUrl:''},
     {id:'dc4',customerId:'c2',ownerId:'u3',type:'보장분석표',name:'박준호_보장분석.pdf',date:'2026-07-12',size:0,dataUrl:''},
+  ];
+}
+
+/* ───────── 커뮤니티 게시글(posts) 데모 ───────── */
+const POST_CATS=['공지','상품자료','세일즈 스크립트','청구/서류','교육','자유'];
+function demoPosts(){
+  return [
+    {id:'p1',cat:'공지',title:'9월 시상식 & 우수지점 안내',by:'본사',date:'2026-09-25',hot:true,body:'9월 시상식을 다음 주 금요일 본사 대강당에서 진행합니다. 우수 지점·설계사 시상과 4분기 전략 공유가 있으니 전원 참석 바랍니다.'},
+    {id:'p2',cat:'상품자료',title:'2026 실손보험 개정 핵심요약',by:'본사 상품팀',date:'2026-09-24',body:'2026년 실손보험 개정 주요 내용: 자기부담금 조정, 비급여 항목 관리 강화. 고객 안내 시 갱신보험료 변동을 반드시 설명하세요.'},
+    {id:'p3',cat:'세일즈 스크립트',title:'출산 고객 어린이보험 접근 스크립트',by:'이팀장',date:'2026-09-23',hot:true,body:'"출산 축하드립니다! 아이를 위한 준비 중에 태아·어린이보험은 가입 시기가 중요한데요, 지금이 가장 좋은 시점이에요."'},
+    {id:'p4',cat:'청구/서류',title:'입원·수술 실손청구 필요서류 체크리스트',by:'본사',date:'2026-09-20',body:'진단서(50만원↓ 입퇴원확인서 대체 가능), 진료비 세부내역서, 진료비 영수증. 청구는 퇴원 후 3년 이내.'},
+    {id:'p5',cat:'교육',title:'신인 13주 도입 교육자료 모음',by:'강남지점',date:'2026-09-18',body:'신인 정착의 핵심은 13주. 주차별 TA·면담·동행 목표와 교육 커리큘럼을 정리했습니다.'},
   ];
 }
 
@@ -507,7 +520,7 @@ function Home({db,me,logout,flash,commit}){
 
       {tab==='org' && <OrgView db={db} me={me} commit={commit} flash={flash}/>}
 
-      {tab==='community' && <Community/>}
+      {tab==='community' && <Community db={db} me={me} commit={commit} flash={flash}/>}
 
       {tab==='more' && <div style={{marginTop:16}}>
         <div className="card" style={{padding:'2px 16px'}}>
@@ -1060,36 +1073,56 @@ function Performance({db,me,scopeUsers}){
   </div>;
 }
 
-/* ───────── 커뮤니티 / 자료실 (전 인원 열람) ───────── */
-function Community(){
-  const cats=['전체','공지','상품자료','세일즈 스크립트','청구/서류','교육'];
-  const [cat,setCat]=useState('전체');
-  const posts=[
-    {c:'공지',t:'9월 시상식 & 우수지점 안내',by:'본사',d:'09.25',hot:true},
-    {c:'상품자료',t:'2026 실손보험 개정 핵심요약 (PDF)',by:'본사 상품팀',d:'09.24'},
-    {c:'세일즈 스크립트',t:'출산 고객 어린이보험 접근 스크립트',by:'이팀장',d:'09.23',hot:true},
-    {c:'청구/서류',t:'입원·수술 실손청구 필요서류 체크리스트',by:'본사',d:'09.20'},
-    {c:'교육',t:'신인 13주 도입 교육자료 모음',by:'강남지점',d:'09.18'},
-    {c:'세일즈 스크립트',t:'만기/갱신 고객 리텐션 대화법',by:'박설계',d:'09.15'},
-  ];
-  const list=posts.filter(p=>cat==='전체'||p.c===cat);
+/* ───────── 커뮤니티 / 자료실 (전 인원 열람 + 글쓰기 실동작) ───────── */
+function Community({db,me,commit,flash}){
+  const [cat,setCat]=useState('전체'); const [open,setOpen]=useState(null); const [write,setWrite]=useState(false);
+  const [f,setF]=useState({cat:'세일즈 스크립트',title:'',body:''});
+  const posts=[...(db.posts||[])].sort((a,b)=>b.date.localeCompare(a.date));
+  const list=posts.filter(p=>cat==='전체'||p.cat===cat);
+  const canNotice = me.role==='hq'||me.role==='branch'||me.role==='team';
+  const submit=()=>{ if(!f.title.trim())return flash('제목을 입력하세요');
+    commit({...db,posts:[...db.posts,{id:'P'+Date.now(),cat:f.cat,title:f.title.trim(),by:me.name,date:new Date().toISOString().slice(0,10),body:f.body.trim()}]});
+    setF({cat:'세일즈 스크립트',title:'',body:''}); setWrite(false); flash('게시글 등록 ✓'); };
+
+  if(write) return <div style={{marginTop:16}}>
+    <div className="row" style={{justifyContent:'space-between',marginBottom:14}}>
+      <div style={{fontWeight:900,fontSize:17}}>✍️ 글쓰기</div>
+      <button className="chip" style={{background:'#EDF1F8',color:'var(--sub)'}} onClick={()=>setWrite(false)}>취소</button></div>
+    <div className="field"><label>카테고리</label>
+      <select value={f.cat} onChange={e=>setF({...f,cat:e.target.value})}>
+        {POST_CATS.filter(c=>c!=='공지'||canNotice).map(c=><option key={c}>{c}</option>)}</select></div>
+    <div className="field"><label>제목</label><input value={f.title} onChange={e=>setF({...f,title:e.target.value})} placeholder="제목을 입력하세요"/></div>
+    <div className="field"><label>내용</label>
+      <textarea value={f.body} onChange={e=>setF({...f,body:e.target.value})} placeholder="내용을 입력하세요" rows={7}
+        style={{width:'100%',border:'1.5px solid var(--line)',borderRadius:12,padding:12,fontFamily:'inherit',fontSize:15,resize:'vertical'}}/></div>
+    <button className="btn blue" onClick={submit}>등록</button>
+  </div>;
+
+  if(open){ const p=posts.find(x=>x.id===open); if(p) return <div style={{marginTop:16}}>
+    <div className="top" style={{padding:0,marginBottom:12}}><button className="back" onClick={()=>setOpen(null)}>‹</button>
+      <span className="chip tag-team">{p.cat}</span></div>
+    <div style={{fontWeight:900,fontSize:20,lineHeight:1.35}}>{p.hot&&'🔥 '}{p.title}</div>
+    <div className="muted" style={{fontSize:12,margin:'8px 0 16px'}}>{p.by} · {p.date}</div>
+    <div className="legal" style={{fontSize:14.5,color:'var(--ink)'}}>{p.body||'(내용 없음)'}</div>
+  </div>; }
+
   return <div style={{marginTop:16}}>
     <div className="row" style={{justifyContent:'space-between',marginBottom:10}}>
       <div style={{fontWeight:900,fontSize:17}}>📚 커뮤니티 · 자료실</div>
-      <button className="chip tag-branch" style={{border:'none'}}>＋ 글쓰기</button></div>
+      <button className="chip tag-branch" onClick={()=>setWrite(true)}>＋ 글쓰기</button></div>
     <div style={{display:'flex',gap:7,overflowX:'auto',paddingBottom:8}}>
-      {cats.map(x=><button key={x} className="chip" onClick={()=>setCat(x)}
+      {['전체',...POST_CATS].map(x=><button key={x} className="chip" onClick={()=>setCat(x)}
         style={{whiteSpace:'nowrap',background:cat===x?'var(--navy)':'#EDF1F8',color:cat===x?'#fff':'var(--sub)'}}>{x}</button>)}
     </div>
-    <div className="card" style={{padding:'4px 16px'}}>
-      {list.map((p,i)=><div key={i} className="listrow">
+    <div className="card" style={{padding:'2px 16px'}}>
+      {list.length?list.map(p=><div key={p.id} className="listrow" onClick={()=>setOpen(p.id)}>
         <div style={{flex:1}}>
-          <div style={{fontWeight:700,fontSize:14}}>{p.hot&&<span style={{color:'#E23B4E'}}>🔥 </span>}{p.t}</div>
-          <div className="muted" style={{fontSize:11.5}}><span className="chip tag-team" style={{padding:'1px 7px',fontSize:10}}>{p.c}</span>  {p.by} · {p.d}</div>
+          <div style={{fontWeight:700,fontSize:14}}>{p.hot&&<span style={{color:'#E23B4E'}}>🔥 </span>}{p.title}</div>
+          <div className="muted" style={{fontSize:11.5}}><span className="chip tag-team" style={{padding:'1px 7px',fontSize:10}}>{p.cat}</span>  {p.by} · {p.date}</div>
         </div><div style={{color:'var(--blue)',fontWeight:800}}>›</div>
-      </div>)}
+      </div>):<div className="muted" style={{padding:'14px 0'}}>글이 없습니다. 첫 글을 남겨보세요.</div>}
     </div>
-    <div className="muted" style={{textAlign:'center',fontSize:11,marginTop:12}}>ⓘ 전 인원이 열람하는 자료실 · 글쓰기·업로드는 백엔드 연결 후 실동작</div>
+    <div className="muted" style={{textAlign:'center',fontSize:11,marginTop:12}}>ⓘ 전 인원 열람 · 파일 업로드는 백엔드 연결 후</div>
   </div>;
 }
 
