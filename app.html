@@ -103,15 +103,16 @@ function seed(){
   const d = DB.load();
   if(d){ let ch=false; if(!d.customers){d.customers=demoCustomers();ch=true;} if(!d.sales){d.sales=demoSales();ch=true;}
     if(!d.recruits){d.recruits=demoRecruits();ch=true;}
-    (d.users||[]).forEach(u=>{ if(u.role!=='branch'&&u.goalApe==null){u.goalApe=300;ch=true;} });
+    (d.users||[]).forEach(u=>{ if(u.role!=='branch'&&u.goalApe==null){u.goalApe=300;ch=true;}
+      if(!u.grade){u.grade=u.role==='branch'?'PLAT':u.role==='team'?'GOLD':'FC';ch=true;} });
     if(ch)DB.save(d); return d; } // 마이그레이션
   const branch = {id:'b1', name:'강남지점', code:'GN-1A2B', managerId:'u1'};
   const team   = {id:'t1', branchId:'b1', name:'1팀', code:'TM-3C4D', leaderId:'u2'};
   const users = [
-    {id:'u1', name:'김지점', phone:'01011110000', pw:'1234', role:'branch', branchId:'b1', teamId:null, recruiterId:null, code:'GN-1A2B', consent:c(), createdAt:Date.now()},
-    {id:'u2', name:'이팀장', phone:'01022220000', pw:'1234', role:'team',   branchId:'b1', teamId:'t1', recruiterId:'u1', code:'TM-3C4D', goalApe:300, consent:c(), createdAt:Date.now()},
-    {id:'u3', name:'박설계', phone:'01033330000', pw:'1234', role:'agent',  branchId:'b1', teamId:'t1', recruiterId:'u2', code:null, goalApe:300, consent:c(), createdAt:Date.now()},
-    {id:'u4', name:'최설계', phone:'01044440000', pw:'1234', role:'agent',  branchId:'b1', teamId:'t1', recruiterId:'u2', code:null, goalApe:200, consent:c(), createdAt:Date.now()},
+    {id:'u1', name:'김지점', phone:'01011110000', pw:'1234', role:'branch', branchId:'b1', teamId:null, recruiterId:null, code:'GN-1A2B', grade:'PLAT', consent:c(), createdAt:Date.now()},
+    {id:'u2', name:'이팀장', phone:'01022220000', pw:'1234', role:'team',   branchId:'b1', teamId:'t1', recruiterId:'u1', code:'TM-3C4D', goalApe:300, grade:'GOLD', consent:c(), createdAt:Date.now()},
+    {id:'u3', name:'박설계', phone:'01033330000', pw:'1234', role:'agent',  branchId:'b1', teamId:'t1', recruiterId:'u2', code:null, goalApe:300, grade:'SFC', consent:c(), createdAt:Date.now()},
+    {id:'u4', name:'최설계', phone:'01044440000', pw:'1234', role:'agent',  branchId:'b1', teamId:'t1', recruiterId:'u2', code:null, goalApe:200, grade:'FC', consent:c(), createdAt:Date.now()},
   ];
   const db = {branches:[branch], teams:[team], users, customers:demoCustomers(), sales:demoSales(), recruits:demoRecruits(), session:null};
   DB.save(db); return db;
@@ -157,6 +158,24 @@ function buildTodos(customers){
   return items.sort((a,b)=> a.p-b.p || a.dd-b.dd);
 }
 const won=(n)=> n>=10000?(n/10000).toFixed(n%10000?1:0)+'억':n+'만';
+
+/* ───────── 직급 체계 / 승급 요건 ───────── */
+const GRADES=[
+  {key:'FC',   name:'FC · 설계사',      emoji:'🌱', req:{ape:0,   ret:0,  rec:0}},
+  {key:'SFC',  name:'시니어 FC',        emoji:'⭐', req:{ape:300, ret:80, rec:0}},
+  {key:'BRONZE',name:'브론즈 매니저',   emoji:'🥉', req:{ape:500, ret:85, rec:1}},
+  {key:'SILVER',name:'실버 매니저',     emoji:'🥈', req:{ape:800, ret:88, rec:3}},
+  {key:'GOLD', name:'골드 매니저',      emoji:'🥇', req:{ape:1200,ret:90, rec:5}},
+  {key:'PLAT', name:'플래티넘 매니저',  emoji:'💎', req:{ape:2000,ret:92, rec:10}},
+];
+const gradeIdx=(k)=>Math.max(0,GRADES.findIndex(g=>g.key===k));
+function userMetrics(db,u){
+  const ape=db.sales.filter(s=>s.agentId===u.id&&s.month===monthKey(0)).reduce((a,s)=>a+s.ape,0);
+  const cts=db.customers.filter(c=>c.ownerId===u.id).flatMap(c=>c.contracts||[]);
+  const ret=cts.length?Math.round(cts.filter(x=>x.status==='정상').length/cts.length*100):100;
+  const rec=db.recruits.filter(r=>r.ownerId===u.id&&r.stage==='정착').length;
+  return {ape,ret,rec};
+}
 
 /* ───────── 실적(sales) 데모 데이터 ───────── */
 const monthKey=(o)=>{const d=new Date();d.setDate(1);d.setMonth(d.getMonth()-o);return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`};
@@ -449,12 +468,15 @@ function Home({db,me,logout,flash,commit}){
 
       {tab==='performance' && <Performance db={db} me={me} scopeUsers={scopeUsers}/>}
 
+      {tab==='promotion' && <Promotion db={db} me={me} scopeUsers={scopeUsers}/>}
+
       {tab==='org' && <OrgView db={db} me={me} commit={commit} flash={flash}/>}
 
       {tab==='community' && <Community/>}
 
       {tab==='more' && <div style={{marginTop:16}}>
         <div className="card" style={{padding:'2px 16px'}}>
+          <div className="listrow" onClick={()=>setTab('promotion')}><div style={{flex:1,fontWeight:700}}>🏅 승급 · 직급</div><span style={{color:'var(--blue)',fontWeight:800}}>›</span></div>
           <div className="listrow" onClick={()=>setTab('community')}><div style={{flex:1,fontWeight:700}}>📚 커뮤니티 · 자료실</div><span style={{color:'var(--blue)',fontWeight:800}}>›</span></div>
           <div className="listrow" style={{borderBottom:'none'}}><div style={{flex:1,fontWeight:700}}>내 추천인 코드</div><b>{me.code||'—'}</b></div>
         </div>
@@ -678,6 +700,57 @@ function Members({db,me}){
     </div>}
   </div>;
 }
+/* ───────── 승급/직급 관리 ───────── */
+function Promotion({db,me,scopeUsers}){
+  const m=userMetrics(db,me);
+  const ci=gradeIdx(me.grade); const cur=GRADES[ci]; const next=GRADES[ci+1];
+  const mkRow=(label,val,req,unit,ape)=>({label,val,req,unit,ape,pct:req?Math.min(100,Math.round(val/req*100)):100,ok:val>=req});
+  let rows=[],ready=false,apeShort=0;
+  if(next){
+    rows=[mkRow('환산성적 APE',m.ape,next.req.ape,'만',true), mkRow('유지율',m.ret,next.req.ret,'%'),
+      ...(next.req.rec>0?[mkRow('정착 리쿠르팅',m.rec,next.req.rec,'명')]:[])];
+    ready=rows.every(r=>r.ok); apeShort=Math.max(0,next.req.ape-m.ape);
+  }
+  const isMgr=me.role!=='agent'; const teamAgents=scopeUsers.filter(u=>u.role==='agent');
+  return <div style={{marginTop:16}}>
+    <div className="codebox" style={{background:'linear-gradient(135deg,#0B1B3F,#1F5BFF)'}}>
+      <div style={{fontSize:12,opacity:.8}}>현재 직급</div>
+      <div style={{fontSize:23,fontWeight:900,marginTop:2}}>{cur.emoji} {cur.name}</div></div>
+    {next ? <div className="card" style={{marginTop:14}}>
+      <div className="row" style={{justifyContent:'space-between'}}>
+        <b>다음 등급 · {next.emoji} {next.name}</b>{ready&&<span className="chip tag-team">승급 가능! 🎉</span>}</div>
+      <div style={{marginTop:12}}>
+        {rows.map((r,i)=><div key={i} style={{marginBottom:12}}>
+          <div className="row" style={{justifyContent:'space-between',marginBottom:4}}>
+            <span style={{fontSize:13,fontWeight:700}}>{r.label}</span>
+            <span style={{fontSize:12,fontWeight:800,color:r.ok?'#12A150':'#C97A00'}}>{r.ape?won(r.val):r.val+r.unit} / {r.ape?won(r.req):r.req+r.unit} {r.ok?'✓':''}</span></div>
+          <div style={{height:8,borderRadius:5,background:'#EEF2F8',overflow:'hidden'}}>
+            <div style={{height:'100%',width:r.pct+'%',borderRadius:5,background:r.ok?'#12A150':'linear-gradient(90deg,#1F5BFF,#38A4FF)',transition:'width .6s'}}/></div></div>)}
+      </div>
+      <div className="card" style={{background:'#F5F8FF',marginTop:6}}>
+        <div style={{fontWeight:800,fontSize:13}}>🔮 승급 시뮬레이터</div>
+        <div className="muted" style={{fontSize:12,marginTop:3}}>{ready?'모든 요건 충족 — 이번 달 승급 대상입니다! 🎉':apeShort>0?`이번 달 APE ${won(apeShort)} 더 달성하면 승급에 가까워집니다.`:'유지율·리쿠르팅 요건을 채우면 승급합니다.'}</div></div>
+    </div> : <div className="card" style={{marginTop:14}}><div className="muted">최고 등급입니다 💎</div></div>}
+
+    {isMgr && teamAgents.length>0 && <div className="card" style={{marginTop:14}}>
+      <b>팀원 진급 현황</b>
+      <div style={{marginTop:8}}>
+        {teamAgents.map(u=>{const um=userMetrics(db,u);const uci=gradeIdx(u.grade);const un=GRADES[uci+1];
+          let pct=100;const risk=um.ret<80;
+          if(un){pct=Math.round(Math.min(Math.min(100,um.ape/(un.req.ape||1)*100),Math.min(100,um.ret/(un.req.ret||1)*100),un.req.rec?Math.min(100,um.rec/un.req.rec*100):100));}
+          return <div key={u.id} className="listrow">
+            <div className="ava">{u.name[0]}</div>
+            <div style={{flex:1}}>
+              <div style={{fontWeight:700,fontSize:13.5}}>{u.name} <span className="muted" style={{fontSize:11}}>{GRADES[uci].emoji}{GRADES[uci].name}</span></div>
+              <div style={{height:6,borderRadius:3,background:'#EEF2F8',overflow:'hidden',marginTop:4}}>
+                <div style={{height:'100%',width:pct+'%',background:pct>=100?'#12A150':'linear-gradient(90deg,#1F5BFF,#38A4FF)'}}/></div></div>
+            {risk?<span className="chip" style={{background:'#E23B4E1A',color:'#E23B4E',fontSize:10}}>자격 위험</span>:pct>=100?<span className="chip tag-team" style={{fontSize:10}}>승급임박</span>:<span style={{fontSize:12,fontWeight:800,color:'var(--blue)'}}>{pct}%</span>}
+          </div>;})}
+      </div></div>}
+    <div className="muted" style={{textAlign:'center',fontSize:11,marginTop:12}}>ⓘ 승급 요건은 데모 기준 · 실제 규정은 관리자 페이지에서 설정</div>
+  </div>;
+}
+
 /* ───────── 매출/업적 (역할별 집계) ───────── */
 function Performance({db,me,scopeUsers}){
   const agentsIn = scopeUsers.filter(u=>u.role==='agent');
