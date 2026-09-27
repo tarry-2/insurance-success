@@ -18,14 +18,15 @@
 <meta property="og:site_name" content="인슈런스 석세스 프로그램">
 <meta property="og:title" content="인슈런스 석세스 | 보험 전문가 성장 플랫폼">
 <meta property="og:description" content="고객·매출·리쿠르팅·승급까지 매일의 할 일로 자동 관리. 유지율·정착률을 데이터로 끌어올리는 보험 설계사 성장 플랫폼.">
-<meta property="og:image" content="https://insu.xn--zk5biyyw.com/hero.jpg">
+<meta property="og:image" content="https://insu.xn--zk5biyyw.com/og-welcome.jpg">
 <meta property="og:url" content="https://insu.xn--zk5biyyw.com/welcome">
 <meta property="og:locale" content="ko_KR">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="인슈런스 석세스 | 보험 전문가 성장 플랫폼">
 <meta name="twitter:description" content="매일의 할 일로 유지율·정착률을 끌어올리는 보험 설계사 성장 플랫폼.">
-<meta name="twitter:image" content="https://insu.xn--zk5biyyw.com/hero.jpg">
+<meta name="twitter:image" content="https://insu.xn--zk5biyyw.com/og-welcome.jpg">
 
+<script>try{if(localStorage.getItem('insu_welcome_theme')==='dark')document.documentElement.setAttribute('data-theme','dark');}catch(e){}</script>
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
 <link rel="icon" href="/icon-192.png">
 <link rel="manifest" href="/manifest.webmanifest">
@@ -72,6 +73,23 @@
     --shadow:0 2px 14px rgba(20,40,90,.06); --shadow-lg:0 24px 60px rgba(20,40,90,.16);
     --r:20px; --maxw:1240px;
   }
+  /* 다크 = 새까맣지 않은 딥네이비 톤 */
+  [data-theme="dark"]{
+    --ink:#EAF0FA; --sub:#9DABC6; --line:#2B3A5C; --bg:#141E36; --card:#1D294A; --soft:#26355A;
+    --shadow:0 2px 14px rgba(0,0,0,.28); --shadow-lg:0 24px 60px rgba(0,0,0,.45);
+  }
+  [data-theme="dark"] nav{background:rgba(20,30,54,.72)}
+  [data-theme="dark"] nav.scrolled{background:rgba(20,30,54,.9)}
+  [data-theme="dark"] .hero-bg .grid{opacity:.18}
+  [data-theme="dark"] .hero-bg .blob{opacity:.28}
+  [data-theme="dark"] .logo .bars i:nth-child(3){background:#8FB4FF}
+  [data-theme="dark"] .stats-card,[data-theme="dark"] .recruit{border:1px solid var(--line)}
+  [data-theme="dark"] .mock-bar{background:#26355A}
+  [data-theme="dark"] .burger span{background:var(--ink)}
+  .theme-btn{width:40px;height:40px;border-radius:11px;border:1.5px solid var(--line);background:var(--card);
+    color:var(--ink);font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;
+    transition:transform .16s,border-color .2s;flex:none}
+  .theme-btn:hover{transform:translateY(-2px);border-color:var(--blue)}
   html{scroll-behavior:smooth}
   body{font-family:'Pretendard Variable',Pretendard,system-ui,-apple-system,sans-serif;color:var(--ink);
     background:var(--bg);-webkit-font-smoothing:antialiased;line-height:1.5;overflow-x:hidden}
@@ -252,6 +270,36 @@
   .foot-bottom{border-top:1px solid var(--line);padding-top:24px;display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap;
     color:var(--sub);font-size:13px}
 
+  /* ── 앱 화면 목업(영상 대신) ── */
+  .mock-app{background:var(--card);border-radius:22px;box-shadow:var(--shadow-lg);border:1px solid var(--line);overflow:hidden}
+  .mock-bar{display:flex;align-items:center;gap:8px;padding:13px 16px;border-bottom:1px solid var(--line);background:var(--bg)}
+  .mock-bar .dots{display:flex;gap:6px} .mock-bar .dots i{width:10px;height:10px;border-radius:50%;background:#D5DEEC}
+  .mock-bar .ttl{margin-left:6px;font-size:12.5px;font-weight:800;color:var(--sub)}
+  .mock-body{padding:20px}
+  .mock-head{display:flex;align-items:center;gap:10px;margin-bottom:16px}
+  .mock-head .av{width:36px;height:36px;border-radius:11px;background:linear-gradient(135deg,var(--blue),var(--blue2));color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:14px;flex:none}
+  .mock-head b{font-size:15px} .mock-head .role{font-size:10.5px;font-weight:800;color:var(--blue);background:var(--soft);padding:3px 9px;border-radius:20px;margin-left:6px}
+  .mock-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:18px}
+  .mock-stats .s{background:var(--bg);border-radius:12px;padding:13px 8px;text-align:center}
+  .mock-stats .s .v{font-size:20px;font-weight:900;line-height:1} .mock-stats .s .l{font-size:10px;color:var(--sub);margin-top:6px}
+  .mock-tt{font-weight:900;font-size:14px;margin-bottom:8px;display:flex;align-items:center;gap:6px}
+  .mock-tt b{color:var(--blue)}
+  .mock-list{display:flex;flex-direction:column}
+  .mock-row{display:flex;align-items:center;gap:11px;padding:11px 0;border-bottom:1px solid var(--line)}
+  .mock-row:last-child{border-bottom:none}
+  .mock-row .ic{width:30px;height:30px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:14px;flex:none}
+  .mock-row .nm{flex:1;font-size:12.5px;font-weight:700;line-height:1.3} .mock-row .nm small{display:block;font-weight:600;color:var(--sub);font-size:10.5px;margin-top:3px}
+  .mock-row .dd{font-size:11px;font-weight:900;flex:none}
+  /* 폰 목업 */
+  .mock-phone{background:var(--navy);border-radius:36px;padding:9px;box-shadow:var(--shadow-lg);width:min(100%,336px);margin:0 auto}
+  .mock-phone .screen{background:var(--bg);border-radius:28px;overflow:hidden}
+  .mock-phone .notch{height:28px;display:flex;align-items:center;justify-content:center}
+  .mock-phone .notch::before{content:'';width:74px;height:6px;border-radius:10px;background:rgba(255,255,255,.28)}
+  .mock-phone .p-body{padding:16px 16px 8px}
+  .mock-phone .p-nav{display:flex;justify-content:space-around;padding:12px 0 14px;border-top:1px solid var(--line);background:var(--card)}
+  .mock-phone .p-nav span{font-size:17px;filter:grayscale(1);opacity:.4}
+  .mock-phone .p-nav span.on{filter:none;opacity:1}
+
   /* ── scroll reveal ── */
   .reveal{opacity:0;transform:translateY(28px);transition:opacity .7s cubic-bezier(.2,.8,.2,1),transform .7s cubic-bezier(.2,.8,.2,1)}
   .reveal.in{opacity:1;transform:none}
@@ -298,6 +346,7 @@
       <a class="lnk" href="#recruit">설계사 모집</a>
       <a class="lnk" href="#faq">FAQ</a>
       <div class="nav-cta">
+        <button class="theme-btn" id="themeBtn" aria-label="라이트/다크 전환" title="라이트/다크 전환">🌙</button>
         <a class="btn btn-ghost btn-sm" href="/app">앱 둘러보기</a>
         <a class="btn btn-primary btn-sm" href="/app?join">무료 상담</a>
       </div>
@@ -329,9 +378,22 @@
       </div>
     </div>
     <div class="hero-visual reveal" data-d="2">
-      <div class="video-card">
-        <span class="video-badge"><span class="live"></span> Insurance Success</span>
-        <video src="/intro.mp4" poster="/intro-poster.jpg" autoplay muted loop playsinline></video>
+      <div class="mock-app">
+        <div class="mock-bar"><span class="dots"><i></i><i></i><i></i></span><span class="ttl">Insurance Success · 오늘의 대시보드</span></div>
+        <div class="mock-body">
+          <div class="mock-head"><span class="av">박</span><div><b>박설계</b><span class="role">설계사</span></div></div>
+          <div class="mock-stats">
+            <div class="s"><div class="v">7</div><div class="l">오늘 할 일</div></div>
+            <div class="s"><div class="v" style="color:#12A150">94.8%</div><div class="l">내 유지율</div></div>
+            <div class="s"><div class="v">4</div><div class="l">관리 고객</div></div>
+          </div>
+          <div class="mock-tt">💡 오늘의 할 일 <b>7</b></div>
+          <div class="mock-list">
+            <div class="mock-row"><span class="ic" style="background:#FDEBEC">⚠️</span><span class="nm">박준호<small>종신보험 2개월 미납 · 실효 위험</small></span><span class="dd" style="color:#E23B4E">D-DAY</span></div>
+            <div class="mock-row"><span class="ic" style="background:#F0ECFF">🏥</span><span class="nm">정민철<small>수술 후 케어 · 실손청구 안내</small></span><span class="dd" style="color:#7A5AF8">D-1</span></div>
+            <div class="mock-row"><span class="ic" style="background:#E9FBF1">🎂</span><span class="nm">김영희<small>생일 축하 연락</small></span><span class="dd" style="color:#22B573">D-2</span></div>
+          </div>
+        </div>
       </div>
       <div class="float-chip fc1"><div class="ic" style="background:#E9FBF1">📈</div><div><div class="v">+34%</div><div class="l">평균 생산성</div></div></div>
       <div class="float-chip fc2"><div class="ic" style="background:#EAF0FF">🎯</div><div><div class="v">94.8%</div><div class="l">우수 유지율</div></div></div>
@@ -456,9 +518,26 @@
       </div>
       <a class="btn btn-ghost" style="margin-top:26px" href="/app">앱 열어보기 →</a>
     </div>
-    <div class="phone reveal" data-d="2">
-      <div class="phone-fallback" id="phoneShot">
-        <video src="/intro.mp4" poster="/intro-poster.jpg" autoplay muted loop playsinline style="width:100%;height:100%;object-fit:cover"></video>
+    <div class="reveal" data-d="2">
+      <div class="mock-phone">
+        <div class="screen">
+          <div class="notch"></div>
+          <div class="p-body">
+            <div class="mock-head"><span class="av">박</span><div><b>박설계</b><span class="role">설계사</span></div></div>
+            <div class="mock-stats">
+              <div class="s"><div class="v">7</div><div class="l">오늘 할 일</div></div>
+              <div class="s"><div class="v" style="color:#12A150">94.8%</div><div class="l">유지율</div></div>
+              <div class="s"><div class="v">4</div><div class="l">고객</div></div>
+            </div>
+            <div class="mock-tt">💡 오늘의 할 일 <b>7</b></div>
+            <div class="mock-list">
+              <div class="mock-row"><span class="ic" style="background:#FDEBEC">⚠️</span><span class="nm">박준호<small>종신보험 미납 · 실효 위험</small></span><span class="dd" style="color:#E23B4E">D-DAY</span></div>
+              <div class="mock-row"><span class="ic" style="background:#F0ECFF">🏥</span><span class="nm">정민철<small>실손청구 안내</small></span><span class="dd" style="color:#7A5AF8">D-1</span></div>
+              <div class="mock-row"><span class="ic" style="background:#E9FBF1">🎂</span><span class="nm">김영희<small>생일 축하 연락</small></span><span class="dd" style="color:#22B573">D-2</span></div>
+            </div>
+          </div>
+          <div class="p-nav"><span class="on">🏠</span><span>🧑</span><span>📈</span><span>⋯</span></div>
+        </div>
       </div>
     </div>
   </div>
@@ -530,6 +609,17 @@
   const burger=document.getElementById('burger'),links=document.getElementById('navlinks');
   burger.addEventListener('click',()=>links.classList.toggle('open'));
   links.querySelectorAll('a').forEach(a=>a.addEventListener('click',()=>links.classList.remove('open')));
+
+  // 라이트/다크 토글
+  const themeBtn=document.getElementById('themeBtn');
+  const setIcon=()=>themeBtn.textContent=document.documentElement.getAttribute('data-theme')==='dark'?'☀️':'🌙';
+  setIcon();
+  themeBtn.addEventListener('click',()=>{
+    const dark=document.documentElement.getAttribute('data-theme')==='dark';
+    if(dark){document.documentElement.removeAttribute('data-theme');try{localStorage.setItem('insu_welcome_theme','light')}catch(e){}}
+    else{document.documentElement.setAttribute('data-theme','dark');try{localStorage.setItem('insu_welcome_theme','dark')}catch(e){}}
+    setIcon();
+  });
 
   // scroll reveal
   const io=new IntersectionObserver((es)=>{es.forEach(e=>{if(e.isIntersecting){e.target.classList.add('in');io.unobserve(e.target);}})},{threshold:.14,rootMargin:'0px 0px -8% 0px'});
