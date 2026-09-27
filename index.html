@@ -86,16 +86,20 @@
   .toast{position:fixed;left:50%;bottom:90px;transform:translateX(-50%);background:#0B1B3Fdd;color:#fff;padding:11px 18px;
     border-radius:12px;font-size:13px;font-weight:700;z-index:100;max-width:90%}
 
+  /* 모바일 기본: PC 전용 좌측 비주얼 패널 숨김 */
+  .auth-aside{display:none}
+
   /* ═══════════ 반응형: 태블릿 · PC (≥760px) — 폰 컬럼 대신 화면 전체 사용 ═══════════ */
   @media(min-width:760px){
     /* 근본원인: .app이 480px로 모든 걸 가운데 폰 크기로 가둠 → 화면 꽉차게 */
     .app{max-width:none;width:100%}
+    .only-mobile{display:none!important}   /* 모바일 전용 요소는 PC에서 숨김 */
 
-    /* ── 홈(네비 + .pad 2단 구조) = 좌측 세로 사이드바 + 우측 본문 꽉차게 ── */
+    /* ── 홈/앱 본문(네비 + .pad 2단) = 좌측 세로 사이드바 + 우측 본문 꽉차게 ── */
     .scroll:has(> .nav):has(> .pad){flex-direction:row-reverse!important;min-height:100dvh}
     .scroll:has(> .nav):has(> .pad) > .nav{
       flex-direction:column;justify-content:flex-start;align-items:stretch;gap:5px;
-      position:sticky;top:0;height:100dvh;width:236px;flex:none;overflow-y:auto;
+      position:sticky;top:0;height:100dvh;width:240px;flex:none;overflow-y:auto;
       border-top:none;border-right:1px solid var(--line);padding:22px 14px}
     .scroll:has(> .nav):has(> .pad) > .nav::before{
       content:'인슈런스 석세스';display:block;font-size:15px;font-weight:900;color:var(--ink);
@@ -106,19 +110,31 @@
     .scroll:has(> .nav):has(> .pad) > .nav button:hover{background:var(--soft)}
     .scroll:has(> .nav):has(> .pad) > .nav button.on{background:var(--soft)}
     .scroll:has(> .nav):has(> .pad) > .nav .ic{font-size:20px}
-    /* 본문이 남는 폭 전부 차지(내부 스크롤) */
     .scroll:has(> .nav):has(> .pad) > .pad{
-      flex:1;min-width:0;max-height:100dvh;overflow-y:auto;padding:30px 40px}
+      flex:1;min-width:0;max-height:100dvh;overflow-y:auto;padding:30px clamp(24px,4vw,64px)}
 
-    /* ── 네비 없는 화면(랜딩·로그인·회원가입·지원·고객폼) = 가운데 정렬 컬럼 ── */
-    .scroll:not(:has(> .nav)) > .pad{max-width:660px;margin:0 auto;width:100%}
+    /* ── 인증·랜딩(로그인·가입·시작·지원) = 좌우 2컬럼 풀스크린 ── */
+    .scroll.auth{display:flex!important;flex-direction:row!important;min-height:100dvh;height:100dvh;overflow:hidden}
+    .scroll.auth > .auth-aside{
+      display:flex;flex-direction:column;justify-content:center;flex:1 1 46%;position:relative;overflow:hidden;
+      padding:clamp(36px,4.5vw,80px);color:#fff;
+      background:linear-gradient(150deg,#0B1B3F 0%,#1F5BFF 62%,#38A4FF 100%)}
+    .scroll.auth > .auth-body{
+      flex:1 1 54%;position:relative;display:flex;flex-direction:column;justify-content:center;
+      max-height:100dvh;overflow-y:auto;background:var(--bg)}
+    .scroll.auth > .auth-body > .top{position:absolute;top:14px;left:12px;z-index:20;padding:0}
+    .scroll.auth > .auth-body > .pad{width:100%;max-width:560px;margin:0 auto;padding:44px 40px}
 
-    /* ── 개발자 콘솔(헤더+본문+하단네비) = 폭만 화면 꽉차게(3단 구조라 사이드바 미적용) ── */
-    /* .app 해제만으로 자동 확장됨 */
+    /* 랜딩 기능 그리드 PC 3열 */
+    .land-feat{grid-template-columns:repeat(3,1fr)!important}
+
   }
-  /* 넓은 데스크탑: 본문이 과하게 늘어지지 않게 상한(그래도 사이드바로 화면은 꽉 찬 느낌) */
-  @media(min-width:1500px){
-    .scroll:has(> .nav):has(> .pad) > .pad > *{max-width:1200px;margin-left:auto;margin-right:auto}
+  /* 홈 대시보드 2컬럼 = 넉넉한 폭(≥1080px)에서만. 좁은 태블릿은 1컬럼(할일 눌림 방지) */
+  @media(min-width:1080px){
+    .home-dash{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:4px 24px;align-items:start}
+    .home-dash > .hd-stats{grid-column:1/-1}
+    .home-dash > .hd-main{grid-column:1;min-width:0}
+    .home-dash > .hd-side{grid-column:2}
   }
 </style>
 </head>
@@ -152,6 +168,28 @@ function ThemeFab({theme,toggleTheme}){
   return <button onClick={toggleTheme} title="다크/라이트" style={{position:'absolute',top:'max(14px,env(safe-area-inset-top))',right:16,zIndex:40,
     width:38,height:38,borderRadius:12,background:'var(--card)',border:'1.5px solid var(--line)',color:'var(--ink)',fontSize:16,
     display:'flex',alignItems:'center',justifyContent:'center',boxShadow:'0 2px 8px rgba(20,40,90,.1)'}}>{theme==='dark'?'☀️':'🌙'}</button>;
+}
+
+/* PC/태블릿 좌측 브랜드 비주얼 패널(모바일 숨김) — 인증·랜딩 화면 좌우 2컬럼용 */
+function AuthAside(){
+  return <aside className="auth-aside">
+    <div style={{position:'absolute',top:'-12%',right:'-8%',width:340,height:340,borderRadius:'50%',background:'rgba(255,255,255,.08)'}}/>
+    <div style={{position:'absolute',bottom:'-16%',left:'-10%',width:300,height:300,borderRadius:'50%',background:'rgba(255,255,255,.06)'}}/>
+    <div style={{position:'relative',zIndex:1}}>
+      <div style={{display:'inline-flex',alignItems:'flex-end',gap:5,height:34,marginBottom:26}}>
+        <div style={{width:9,height:15,background:'rgba(255,255,255,.55)',borderRadius:3}}/>
+        <div style={{width:9,height:24,background:'rgba(255,255,255,.8)',borderRadius:3}}/>
+        <div style={{width:9,height:34,background:'#fff',borderRadius:3}}/>
+      </div>
+      <div style={{fontSize:34,fontWeight:900,letterSpacing:-1,lineHeight:1.2}}>인슈런스<br/>석세스 프로그램</div>
+      <div style={{fontSize:15.5,opacity:.9,marginTop:14,lineHeight:1.7,fontWeight:500}}>고객·매출·리쿠르팅·승급까지<br/>매일의 할 일로 자동 관리하는<br/>보험 전문가 성장 플랫폼</div>
+      <div style={{display:'flex',gap:26,marginTop:34}}>
+        {[['유지율','이탈 사전 방어'],['정착률','신인 13주 밀착'],['생산성','할 일 자동화']].map(([v,l])=>
+          <div key={v}><div style={{fontWeight:900,fontSize:17}}>{v}</div><div style={{fontSize:12,opacity:.8,marginTop:4}}>{l}</div></div>)}
+      </div>
+    </div>
+    <img src="/mascot-cut.png" alt="" style={{position:'absolute',right:'6%',bottom:'6%',width:180,height:180,objectFit:'contain',filter:'drop-shadow(0 8px 16px rgba(0,0,0,.35))',zIndex:1}}/>
+  </aside>;
 }
 
 // 🎬 인트로 영상(애니메이션) — 자동재생(무음)·루프·모바일 인라인 + 스피커/크게보기
@@ -520,8 +558,10 @@ function JoinPage({go,submit,flash,theme,toggleTheme}){
     </div>
   </div>;
 
-  return <div className="scroll" style={{background:'var(--landbg)'}}>
+  return <div className="scroll auth" style={{background:'var(--landbg)'}}>
     <ThemeFab theme={theme} toggleTheme={toggleTheme}/>
+    <AuthAside/>
+    <div className="auth-body">
     <div className="pad" style={{paddingTop:20}}>
       {/* 히어로 */}
       <div style={{position:'relative',borderRadius:20,overflow:'hidden',boxShadow:'0 12px 30px rgba(20,40,90,.16)'}}>
@@ -557,6 +597,7 @@ function JoinPage({go,submit,flash,theme,toggleTheme}){
       <button className="btn blue" disabled={busy} onClick={go2}>{busy?'접수 중…':'상담 신청하기'}</button>
       <div className="muted" style={{textAlign:'center',fontSize:11,margin:'12px 0 4px'}}>이미 회원이신가요? <span className="link" onClick={()=>go('login')}>로그인</span></div>
     </div>
+    </div>
   </div>;
 }
 
@@ -564,8 +605,10 @@ function JoinPage({go,submit,flash,theme,toggleTheme}){
 function Landing({go,onDev,theme,toggleTheme}){
   const [tap,setTap]=useState(0);
   const hitLogo=()=>{ const n=tap+1; setTap(n); if(n>=7){ setTap(0); onDev&&onDev(); } };
-  return <div className="scroll" style={{background:'var(--landbg)'}}>
+  return <div className="scroll auth" style={{background:'var(--landbg)'}}>
     <ThemeFab theme={theme} toggleTheme={toggleTheme}/>
+    <AuthAside/>
+    <div className="auth-body">
     <div className="pad" style={{paddingTop:20}}>
       {/* 🔧 왼쪽 상단 그래프 로고 — 7번 클릭 시 개발자 페이지 */}
       <div onClick={hitLogo} style={{display:'inline-flex',alignItems:'flex-end',gap:3,height:24,marginBottom:12,cursor:'pointer',userSelect:'none'}} title="Insurance Success">
@@ -577,7 +620,7 @@ function Landing({go,onDev,theme,toggleTheme}){
       <IntroVideo radius={20}/>
 
       {/* 기능 하이라이트 그리드 */}
-      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:9,marginTop:12}}>
+      <div className="land-feat" style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:9,marginTop:12}}>
         {[['🤝','고객관리','생일·기념일·병원 D-day','#1F5BFF'],['📈','매출·업적','APE·수수료·랭킹','#12B5A5'],['🌱','리쿠르팅','퍼널·정착·13주 신인','#22B573'],['🏅','승급 관리','직급 요건 자동 진척','#7A5AF8'],['🏥','병원·청구','실손 서류 자동 안내','#FF7A59'],['🗂️','자료·커뮤니티','보관·검색·공유','#F5A623']].map(([ic,t,d,c],i)=>
           <div key={t} className="card feat-card" style={{padding:'13px 13px','--accent':c,'--accent-soft':c+'22','--pd':(i*1.5)+'s',animationDelay:`${i*0.07}s, ${i*1.5}s`}}>
             <div className="feat-ic">{ic}</div>
@@ -585,8 +628,8 @@ function Landing({go,onDev,theme,toggleTheme}){
             <div className="muted" style={{fontSize:10.5,marginTop:2,lineHeight:1.4}}>{d}</div></div>)}
       </div>
 
-      {/* 성과 지표 배지 + 마스코트(누끼) */}
-      <div style={{position:'relative',marginTop:10,borderRadius:16,padding:'13px 66px 13px 16px',background:'linear-gradient(135deg,#0B1B3F,#1F5BFF)',color:'#fff'}}>
+      {/* 성과 지표 배지 + 마스코트(누끼) — 모바일 전용(PC는 좌측 패널) */}
+      <div className="only-mobile" style={{position:'relative',marginTop:10,borderRadius:16,padding:'13px 66px 13px 16px',background:'linear-gradient(135deg,#0B1B3F,#1F5BFF)',color:'#fff'}}>
         <div style={{display:'flex',gap:8}}>
           {[['유지율','이탈 사전 방어'],['정착률','신인 13주 밀착'],['생산성','할 일 자동화']].map(([v,l])=>
             <div key={v} style={{flex:1,textAlign:'center'}}>
@@ -600,6 +643,7 @@ function Landing({go,onDev,theme,toggleTheme}){
       <div style={{height:9}}/>
       <button className="btn ghost" onClick={()=>go('login')}>로그인</button>
       <div style={{height:12}}/>
+    </div>
     </div>
   </div>;
 }
@@ -631,8 +675,10 @@ function Signup({go,signup,flash,theme,toggleTheme}){
   };
 
   const STEPS=[['역할','👤'],['정보','📝'],['약관','📄']];
-  return <div className="scroll">
+  return <div className="scroll auth">
     <ThemeFab theme={theme} toggleTheme={toggleTheme}/>
+    <AuthAside/>
+    <div className="auth-body">
     <div className="top"><button className="back" onClick={()=>step===1?go('landing'):setStep(step-1)}>‹</button>
       <div style={{fontWeight:800}}>회원가입</div></div>
     <div className="pad" style={{paddingTop:6}}>
@@ -695,6 +741,7 @@ function Signup({go,signup,flash,theme,toggleTheme}){
       <button className="btn blue" disabled={!agree.tos||!agree.privacy||busy} onClick={doSignup}>{busy?'가입 중…':'가입 완료'}</button>
     </>}
     </div>
+    </div>
   </div>;
 }
 function Ck({on,set,label,onView}){
@@ -709,12 +756,14 @@ function Ck({on,set,label,onView}){
 function Login({go,login,demoLogin,flash,theme,toggleTheme}){
   const [phone,setPhone]=useState(''),[pw,setPw]=useState(''),[err,setErr]=useState(''),[busy,setBusy]=useState(false);
   const submit=async()=>{ setErr(''); if(phone.length<10||!pw)return setErr('전화번호·비밀번호를 입력하세요'); setBusy(true); const res=await login(phone,pw); setBusy(false); if(res.error) setErr(res.error); };
-  return <div className="scroll">
+  return <div className="scroll auth">
     <ThemeFab theme={theme} toggleTheme={toggleTheme}/>
+    <AuthAside/>
+    <div className="auth-body">
     <div className="top"><button className="back" onClick={()=>go('landing')}>‹</button><div style={{fontWeight:800}}>로그인</div></div>
     <div className="pad">
-      {/* 🎬 인트로 영상(애니메이션) */}
-      <div style={{marginBottom:16}}><IntroVideo radius={18}/></div>
+      {/* 🎬 인트로 영상(애니메이션) — 모바일에서만(PC는 좌측 패널) */}
+      <div className="only-mobile" style={{marginBottom:16}}><IntroVideo radius={18}/></div>
       <div className="h1" style={{fontSize:22,marginBottom:6}}>다시 오신 것을<br/>환영합니다</div>
       <div className="muted" style={{marginBottom:20}}>보험 전문가 계정으로 로그인하세요.</div>
       <div className="field"><label>전화번호 (아이디)</label><input value={phone} onChange={e=>setPhone(e.target.value.replace(/\D/g,''))} placeholder="01012345678" inputMode="numeric"/></div>
@@ -728,6 +777,7 @@ function Login({go,login,demoLogin,flash,theme,toggleTheme}){
         <button className="btn ghost" style={{height:44,fontSize:13}} onClick={()=>demoLogin('agent')}>설계사</button>
       </div>
       <div style={{textAlign:'center',marginTop:18,fontSize:13,color:'var(--sub)'}}>계정이 없으신가요? <span className="link" onClick={()=>go('signup')}>회원가입</span></div>
+    </div>
     </div>
   </div>;
 }
@@ -785,8 +835,9 @@ function Home({db,me,logout,flash,commit,theme,toggleTheme,svcCreateAccount,relo
       {tab==='home' && (()=>{
         const allC=myCustomers.flatMap(c=>c.contracts||[]);
         const ret=allC.length?Math.round(allC.filter(x=>x.status==='정상').length/allC.length*100):100;
-        return <>
-        <div className="row" style={{gap:10,marginTop:16}}>
+        const sum={}; todos.forEach(t=>{sum[t.type]=(sum[t.type]||0)+1;});
+        return <div className="home-dash">
+        <div className="hd-stats row" style={{gap:10,marginTop:16}}>
           {me.role==='agent'
             ? <><div className="stat"><div className="v">{todos.length}</div><div className="l">오늘 할 일</div></div>
                 <div className="stat"><div className="v" style={{color:ret<80?'#E23B4E':'inherit'}}>{ret}%</div><div className="l">내 유지율</div></div>
@@ -796,6 +847,7 @@ function Home({db,me,logout,flash,commit,theme,toggleTheme,svcCreateAccount,relo
                 <div className="stat"><div className="v" style={{color:ret<80?'#E23B4E':'inherit'}}>{ret}%</div><div className="l">평균 유지율</div></div></>}
         </div>
 
+        <div className="hd-main">
         <div className="row" style={{justifyContent:'space-between',margin:'18px 0 8px'}}>
           <div style={{fontWeight:900,fontSize:16}}>💡 오늘의 할 일 <span style={{color:'var(--blue)'}}>{todos.length}</span></div>
           {me.role==='agent'&&<button className="chip tag-branch" onClick={()=>setAddCust(true)}>＋ 고객</button>}
@@ -803,7 +855,7 @@ function Home({db,me,logout,flash,commit,theme,toggleTheme,svcCreateAccount,relo
         {todos.length===0
           ? <div className="card"><div className="muted">오늘 급한 할 일이 없어요. 고객을 등록하면 생일·기념일·미납·만기·병원 케어가 자동으로 잡혀요.</div></div>
           : <div className="card" style={{padding:'2px 14px'}}>
-              {todos.slice(0,12).map((it,i)=><div key={i} className="listrow" onClick={()=>setOpenCust(it.cust.id)}>
+              {todos.slice(0,20).map((it,i)=><div key={i} className="listrow" onClick={()=>setOpenCust(it.cust.id)}>
                 <div style={{width:34,height:34,borderRadius:10,background:it.color+'1A',display:'flex',alignItems:'center',justifyContent:'center',fontSize:16,flex:'none'}}>{it.icon}</div>
                 <div style={{flex:1}}>
                   <div style={{fontWeight:700,fontSize:13.5}}>{it.cust.name} <span style={{color:'var(--sub)',fontWeight:600}}>· {it.text}</span></div>
@@ -812,13 +864,21 @@ function Home({db,me,logout,flash,commit,theme,toggleTheme,svcCreateAccount,relo
                 <div style={{fontSize:11,fontWeight:900,color:it.color}}>{ddLabel(it.dd)}</div>
               </div>)}
             </div>}
+        </div>
 
+        <aside className="hd-side">
+        {todos.length>0 && <div className="card" style={{marginTop:18}}>
+          <div style={{fontWeight:800,marginBottom:4,fontSize:14}}>📌 할 일 유형별</div>
+          {Object.entries(sum).map(([k,v])=><div key={k} className="row" style={{justifyContent:'space-between',padding:'8px 0',borderBottom:'1px solid var(--line)'}}>
+            <span className="muted" style={{fontSize:13}}>{k}</span><b style={{fontSize:14}}>{v}</b></div>)}
+        </div>}
         {me.role!=='agent' && <div className="codebox" style={{marginTop:16}}>
           <div style={{fontSize:12,opacity:.8}}>내 추천인 코드 (하위 초대용)</div>
           <div className="c">{me.code||'-'}</div>
           <div style={{fontSize:11,opacity:.7,marginTop:4}}>{me.role==='branch'?'팀장':'설계사'}가 이 코드로 가입하면 자동 소속됩니다</div>
         </div>}
-      </>;})()}
+        </aside>
+      </div>;})()}
 
       {tab==='customers' && <CustomerList customers={myCustomers} me={me} onOpen={setOpenCust} onAdd={()=>setAddCust(true)}/>}
 
