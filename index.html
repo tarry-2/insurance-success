@@ -85,6 +85,41 @@
   .nav button.on{color:var(--blue)}.nav .ic{font-size:19px}
   .toast{position:fixed;left:50%;bottom:90px;transform:translateX(-50%);background:#0B1B3Fdd;color:#fff;padding:11px 18px;
     border-radius:12px;font-size:13px;font-weight:700;z-index:100;max-width:90%}
+
+  /* ═══════════ 반응형: 태블릿 · PC (≥760px) — 폰 컬럼 대신 화면 전체 사용 ═══════════ */
+  @media(min-width:760px){
+    /* 근본원인: .app이 480px로 모든 걸 가운데 폰 크기로 가둠 → 화면 꽉차게 */
+    .app{max-width:none;width:100%}
+
+    /* ── 홈(네비 + .pad 2단 구조) = 좌측 세로 사이드바 + 우측 본문 꽉차게 ── */
+    .scroll:has(> .nav):has(> .pad){flex-direction:row-reverse!important;min-height:100dvh}
+    .scroll:has(> .nav):has(> .pad) > .nav{
+      flex-direction:column;justify-content:flex-start;align-items:stretch;gap:5px;
+      position:sticky;top:0;height:100dvh;width:236px;flex:none;overflow-y:auto;
+      border-top:none;border-right:1px solid var(--line);padding:22px 14px}
+    .scroll:has(> .nav):has(> .pad) > .nav::before{
+      content:'인슈런스 석세스';display:block;font-size:15px;font-weight:900;color:var(--ink);
+      letter-spacing:-.4px;padding:4px 12px 16px}
+    .scroll:has(> .nav):has(> .pad) > .nav button{
+      flex:none;flex-direction:row;justify-content:flex-start;gap:13px;
+      font-size:14.5px;padding:12px 14px;border-radius:12px;transition:background .15s,color .15s}
+    .scroll:has(> .nav):has(> .pad) > .nav button:hover{background:var(--soft)}
+    .scroll:has(> .nav):has(> .pad) > .nav button.on{background:var(--soft)}
+    .scroll:has(> .nav):has(> .pad) > .nav .ic{font-size:20px}
+    /* 본문이 남는 폭 전부 차지(내부 스크롤) */
+    .scroll:has(> .nav):has(> .pad) > .pad{
+      flex:1;min-width:0;max-height:100dvh;overflow-y:auto;padding:30px 40px}
+
+    /* ── 네비 없는 화면(랜딩·로그인·회원가입·지원·고객폼) = 가운데 정렬 컬럼 ── */
+    .scroll:not(:has(> .nav)) > .pad{max-width:660px;margin:0 auto;width:100%}
+
+    /* ── 개발자 콘솔(헤더+본문+하단네비) = 폭만 화면 꽉차게(3단 구조라 사이드바 미적용) ── */
+    /* .app 해제만으로 자동 확장됨 */
+  }
+  /* 넓은 데스크탑: 본문이 과하게 늘어지지 않게 상한(그래도 사이드바로 화면은 꽉 찬 느낌) */
+  @media(min-width:1500px){
+    .scroll:has(> .nav):has(> .pad) > .pad > *{max-width:1200px;margin-left:auto;margin-right:auto}
+  }
 </style>
 </head>
 <body>
